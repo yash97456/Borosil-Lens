@@ -63,7 +63,7 @@ export default function HomePage() {
               onClick={() => navigate("/upload")}
               sx={{ minWidth: 160, borderRadius: 50 }}
             >
-              Upload Images
+              Upload Image
             </Button>
           </motion.div>
         </Grid>

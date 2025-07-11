@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Box,
   Paper,
@@ -9,12 +9,14 @@ import {
   CardContent,
   LinearProgress,
   IconButton,
+  useMediaQuery,
 } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
+import { useTheme } from "@mui/material/styles";
 
 const fakeResults = [
   {
@@ -52,6 +54,15 @@ export default function SearchPage() {
   const cameraInputRef = useRef();
   const resultsRef = useRef();
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
+  useEffect(() => {
+    const savedResults = localStorage.getItem("searchResults");
+    const savedPreview = localStorage.getItem("searchPreview");
+    if (savedResults) setResults(JSON.parse(savedResults));
+    if (savedPreview) setPreview(savedPreview);
+  }, []);
 
   const fetchResults = async (imgFile) => {
     return new Promise((resolve) =>
@@ -63,8 +74,11 @@ export default function SearchPage() {
     const file = e.target.files[0];
     if (file) {
       setImage(file);
-      setPreview(URL.createObjectURL(file));
+      const url = URL.createObjectURL(file);
+      setPreview(url);
       setResults([]);
+      localStorage.removeItem("searchResults");
+      localStorage.setItem("searchPreview", url);
     }
   };
 
@@ -73,6 +87,8 @@ export default function SearchPage() {
     setImage(null);
     setPreview(null);
     setResults([]);
+    localStorage.removeItem("searchResults");
+    localStorage.removeItem("searchPreview");
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (cameraInputRef.current) cameraInputRef.current.value = "";
   };
@@ -84,6 +100,8 @@ export default function SearchPage() {
     const res = await fetchResults(image);
     setResults(res);
     setLoading(false);
+    localStorage.setItem("searchResults", JSON.stringify(res));
+    if (preview) localStorage.setItem("searchPreview", preview);
     setTimeout(() => {
       if (resultsRef.current) {
         resultsRef.current.scrollIntoView({
@@ -227,16 +245,75 @@ export default function SearchPage() {
       {loading && <LinearProgress sx={{ mb: 2 }} />}
       {results.length > 0 && (
         <Box ref={resultsRef}>
-          <Typography
-            variant="h5"
-            fontWeight={900}
-            mb={3}
-            mt={6}
-            textAlign="center"
-            sx={{ fontSize: { xs: 22, sm: 26, md: 30 }, letterSpacing: 0.5 }}
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: isMobile ? "column" : "row",
+              alignItems: isMobile ? "stretch" : "center",
+              justifyContent: isMobile ? "flex-start" : "center",
+              mb: isMobile ? 2 : 3,
+              mt: 6,
+              gap: isMobile ? 1.5 : 3,
+              width: "100%",
+              textAlign: isMobile ? "center" : "left",
+            }}
           >
-            Top 3 Identified SKUs
-          </Typography>
+            <Typography
+              variant="h5"
+              fontWeight={900}
+              sx={{
+                fontSize: { xs: 22, sm: 26, md: 30 },
+                letterSpacing: 0.5,
+                mb: isMobile ? 0.5 : 0,
+                flex: "none",
+              }}
+            >
+              Top 3 Identified SKUs
+            </Typography>
+            {!isMobile && (
+              <motion.div
+                {...subtleMotion}
+                style={{
+                  display: "inline-block",
+                  borderRadius: 50,
+                  marginLeft: 24,
+                  marginTop: 0,
+                  width: "auto",
+                }}
+              >
+                <Button
+                  variant="contained"
+                  sx={{
+                    fontWeight: 700,
+                    borderRadius: 50,
+                    px: 4,
+                    py: 1.2,
+                    bgcolor: "#f9a825",
+                    color: "#222",
+                    fontSize: 16,
+                    boxShadow: 2,
+                    background:
+                      "linear-gradient(90deg, #f9a825 60%, #ffd54f 100%)",
+                    minWidth: 220,
+                    "&:hover": {
+                      bgcolor: "#fbc02d",
+                      background:
+                        "linear-gradient(90deg, #ffd54f 60%, #f9a825 100%)",
+                      color: "#111",
+                    },
+                  }}
+                  onClick={() => {
+                    setResults([]);
+                    localStorage.removeItem("searchResults");
+                    localStorage.removeItem("searchPreview");
+                    navigate("/feedback", { state: { image: preview } });
+                  }}
+                >
+                  Not satisfied? Give Feedback
+                </Button>
+              </motion.div>
+            )}
+          </Box>
           <Grid container spacing={2} justifyContent="center">
             {results.map((res, idx) => (
               <Grid
@@ -244,35 +321,57 @@ export default function SearchPage() {
                 xs={12}
                 md={4}
                 key={res.sku}
-                sx={{ overflow: "visible" }}
+                sx={{
+                  overflow: "visible",
+                  ...(isMobile && {
+                    px: 0,
+                    mb: 1.2,
+                  }),
+                }}
               >
                 <Card
                   component={motion.div}
                   whileHover={subtleMotion.whileHover}
                   sx={{
-                    borderRadius: 4,
-                    boxShadow: 4,
+                    borderRadius: isMobile ? 2 : 4,
+                    boxShadow: isMobile ? 1 : 4,
                     textAlign: "center",
-                    minHeight: 180,
+                    minHeight: isMobile ? 90 : 180,
                     display: "flex",
                     flexDirection: "column",
                     justifyContent: "center",
                     alignItems: "center",
-                    background:
-                      "linear-gradient(135deg, #e3f2fd 0%, #f4f6fb 100%)",
-                    border: "1.5px solid #e0e0e0",
-                    p: 2,
+                    background: isMobile
+                      ? "#fff"
+                      : "linear-gradient(135deg, #e3f2fd 0%, #f4f6fb 100%)",
+                    border: isMobile
+                      ? "1px solid #e0e0e0"
+                      : "1.5px solid #e0e0e0",
+                    p: isMobile ? 1.2 : 2,
                     overflow: "hidden",
                     transition: "background 0.2s",
                     cursor: "pointer",
+                    width: isMobile ? "100%" : undefined,
+                    mx: isMobile ? 0 : undefined,
                   }}
                   elevation={0}
                 >
-                  <CardContent sx={{ width: "100%", p: 2 }}>
+                  <CardContent
+                    sx={{
+                      width: "100%",
+                      p: isMobile ? 1 : 2,
+                      "&:last-child": { pb: isMobile ? "8px" : "16px" },
+                    }}
+                  >
                     <Typography
                       variant="subtitle1"
                       fontWeight={900}
-                      sx={{ color: "#0057b8", fontSize: 18, mb: 0.5 }}
+                      sx={{
+                        color: "#0057b8",
+                        fontSize: isMobile ? 15 : 18,
+                        mb: isMobile ? 0.2 : 0.5,
+                        lineHeight: 1.1,
+                      }}
                     >
                       {res.name}
                     </Typography>
@@ -282,8 +381,9 @@ export default function SearchPage() {
                       sx={{
                         color: "#222",
                         letterSpacing: 1,
-                        fontSize: 16,
-                        mb: 0.5,
+                        fontSize: isMobile ? 13 : 16,
+                        mb: isMobile ? 0.2 : 0.5,
+                        lineHeight: 1.1,
                       }}
                     >
                       SKU: {res.sku}
@@ -293,7 +393,8 @@ export default function SearchPage() {
                       fontWeight={700}
                       sx={{
                         color: "#388e3c",
-                        fontSize: 15,
+                        fontSize: isMobile ? 12 : 15,
+                        lineHeight: 1.1,
                       }}
                     >
                       Confidence: {(res.confidence * 100).toFixed(1)}%
@@ -303,40 +404,46 @@ export default function SearchPage() {
               </Grid>
             ))}
           </Grid>
-          <Box sx={{ mt: 3, textAlign: "center" }}>
-            <motion.div
-              {...subtleMotion}
-              style={{ display: "inline-block", borderRadius: 50 }}
-            >
-              <Button
-                variant="contained"
-                sx={{
-                  fontWeight: 700,
-                  borderRadius: 50,
-                  px: 4,
-                  py: 1.2,
-                  bgcolor: "#f9a825",
-                  color: "#222",
-                  fontSize: 16,
-                  boxShadow: 2,
-                  background:
-                    "linear-gradient(90deg, #f9a825 60%, #ffd54f 100%)",
-                  minWidth: 220,
-                  "&:hover": {
-                    bgcolor: "#fbc02d",
-                    background:
-                      "linear-gradient(90deg, #ffd54f 60%, #f9a825 100%)",
-                    color: "#111",
-                  },
-                }}
-                onClick={() =>
-                  navigate("/feedback", { state: { image: preview } })
-                }
+          {isMobile && (
+            <Box sx={{ mt: 3, textAlign: "center" }}>
+              <motion.div
+                {...subtleMotion}
+                style={{ display: "inline-block", borderRadius: 50 }}
               >
-                Not satisfied? Give Feedback
-              </Button>
-            </motion.div>
-          </Box>
+                <Button
+                  variant="contained"
+                  sx={{
+                    fontWeight: 700,
+                    borderRadius: 50,
+                    px: 4,
+                    py: 1.2,
+                    bgcolor: "#f9a825",
+                    color: "#222",
+                    fontSize: 16,
+                    boxShadow: 2,
+                    background:
+                      "linear-gradient(90deg, #f9a825 60%, #ffd54f 100%)",
+                    minWidth: 220,
+                    width: "100%",
+                    "&:hover": {
+                      bgcolor: "#fbc02d",
+                      background:
+                        "linear-gradient(90deg, #ffd54f 60%, #f9a825 100%)",
+                      color: "#111",
+                    },
+                  }}
+                  onClick={() => {
+                    setResults([]);
+                    localStorage.removeItem("searchResults");
+                    localStorage.removeItem("searchPreview");
+                    navigate("/feedback", { state: { image: preview } });
+                  }}
+                >
+                  Not satisfied? Give Feedback
+                </Button>
+              </motion.div>
+            </Box>
+          )}
         </Box>
       )}
     </Box>

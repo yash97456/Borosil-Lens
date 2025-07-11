@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Box,
   Paper,
@@ -7,7 +7,7 @@ import {
   Button,
   Autocomplete,
 } from "@mui/material";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Snackbar, Alert } from "@mui/material";
 
 const fakeCodes = [
@@ -19,7 +19,19 @@ const fakeCodes = [
 
 export default function FeedbackPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const uploadedImage = location.state?.image;
+
+  useEffect(() => {
+    if (!uploadedImage) {
+      navigate("/search", { replace: true });
+    }
+  }, [uploadedImage, navigate]);
+
+  if (!uploadedImage) {
+    return null;
+  }
+
   const [code, setCode] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [snackbar, setSnackbar] = useState({
@@ -36,7 +48,7 @@ export default function FeedbackPage() {
       JSON.stringify({
         image: uploadedImage || localStorage.getItem("uploadedImage"),
         suggestedCode: code.label,
-        user: "emp456", 
+        user: "emp456",
         date: new Date().toISOString().slice(0, 10),
       })
     );
@@ -111,7 +123,7 @@ export default function FeedbackPage() {
           top: { xs: 16, sm: 24 },
           "& .MuiPaper-root": {
             maxWidth: 360,
-            mx: 1, 
+            mx: 1,
             borderRadius: 2,
           },
         }}

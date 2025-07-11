@@ -5,35 +5,35 @@ import {
   Typography,
   TextField,
   Button,
-  MenuItem,
   Divider,
   useTheme,
   useMediaQuery,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
 import logo from "../assets/logo.png";
 
-const plants = [
-  { label: "Jaipur", value: "jaipur" },
-  { label: "Gujarat", value: "gujarat" },
-  { label: "Mumbai", value: "mumbai" },
-];
-
 export default function LoginPage() {
-  const [form, setForm] = useState({ userId: "", password: "", plant: "" });
+  const [form, setForm] = useState({ userId: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
+  });
+
   const navigate = useNavigate();
   const theme = useTheme();
   const isXs = useMediaQuery(theme.breakpoints.down("sm"));
-  const isSm = useMediaQuery(theme.breakpoints.down("md"));
 
-  const validateWithBigQuery = async ({ userId, password, plant }) => {
+  const validateWithBigQuery = async ({ userId, password }) => {
     // TODO: Replace with real BigQuery API call
     return new Promise((resolve) => {
       setTimeout(() => {
-        if (userId === "admin" && password === "admin123" && plant) {
+        if (userId === "admin" && password === "admin123") {
           resolve({ success: true, role: "Admin" });
         } else {
           resolve({
@@ -50,15 +50,46 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
+
+    if (!form.userId.trim() || !form.password.trim()) {
+      setError("Please fill all fields");
+      setSnackbar({
+        open: true,
+        message: "Please fill all fields",
+        severity: "error",
+      });
+      return;
+    }
+
+    setLoading(true);
     const result = await validateWithBigQuery(form);
     setLoading(false);
+
     if (result.success) {
-      navigate("/");
+      localStorage.setItem("userId", form.userId);
+
+      setSnackbar({
+        open: true,
+        message: "Login successful!",
+        severity: "success",
+      });
+      setTimeout(() => {
+        navigate("/");
+      }, 1000);
     } else {
-      setError(result.message || "Please fill all fields");
+      setError(result.message || "Login failed");
+      setSnackbar({
+        open: true,
+        message: result.message || "Login failed",
+        severity: "error",
+      });
     }
+  };
+
+  const handleSnackbarClose = (_, reason) => {
+    if (reason === "clickaway") return;
+    setSnackbar((prev) => ({ ...prev, open: false }));
   };
 
   return (
@@ -158,6 +189,28 @@ export default function LoginPage() {
             {loading ? "Signing in..." : "Login"}
           </Button>
         </form>
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={2500}
+          onClose={handleSnackbarClose}
+          anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        >
+          <Alert
+            onClose={handleSnackbarClose}
+            severity={snackbar.severity}
+            sx={{
+              width: "100%",
+              fontSize: { xs: 15, sm: 16 },
+              px: { xs: 1, sm: 2 },
+              py: { xs: 1, sm: 1.5 },
+              borderRadius: 2,
+              boxShadow: 2,
+            }}
+            variant="filled"
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
       </Paper>
     </Box>
   );

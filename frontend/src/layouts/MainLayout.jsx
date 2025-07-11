@@ -31,7 +31,7 @@ import logo from "../assets/logo.png";
 
 const navItems = [
   { text: "Home", icon: <DashboardIcon />, path: "/" },
-  { text: "Upload Images", icon: <UploadIcon />, path: "/upload" },
+  { text: "Upload Image", icon: <UploadIcon />, path: "/upload" },
   { text: "Search Product", icon: <SearchIcon />, path: "/search" },
   { text: "User Panel", icon: <PersonIcon />, path: "/user-panel" },
 ];

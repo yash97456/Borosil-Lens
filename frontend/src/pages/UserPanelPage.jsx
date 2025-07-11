@@ -22,6 +22,8 @@ import {
   MenuItem,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import DeleteIcon from "@mui/icons-material/Delete";
+
 import { Snackbar, Alert } from "@mui/material";
 
 const uploadedImage = localStorage.getItem("uploadedImage");
@@ -66,6 +68,11 @@ export default function UserPanelPage() {
   const isSm = useMediaQuery(theme.breakpoints.down("md"));
   const [openImgModal, setOpenImgModal] = useState(false);
   const [modalImgSrc, setModalImgSrc] = useState("");
+  const [userToDelete, setUserToDelete] = useState(null);
+
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editPwd, setEditPwd] = useState("");
+
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
@@ -78,7 +85,7 @@ export default function UserPanelPage() {
     minWidth: { xs: 260, sm: 340 },
     maxWidth: { xs: "90vw", sm: 400 },
     minHeight: { xs: 240, sm: 340 },
-    maxHeight: { xs: "90vh", sm: 300 },
+    maxHeight: { xs: "90vh", sm: 500 },
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
@@ -103,17 +110,53 @@ export default function UserPanelPage() {
     setSelectedFeedback(id);
     setConfirmOpen(true);
   };
-  const handleConfirm = () => {
+  const handleDeleteUser = async (userId, silent = false) => {
+    if (
+      !silent &&
+      !window.confirm("Are you sure you want to delete this user?")
+    )
+      return;
+    try {
+      const res = await fetch(
+        `${
+          process.env.REACT_APP_API_URL || "http://localhost:5000/api"
+        }/admin/user/${userId}`,
+        { method: "DELETE" }
+      );
+      const data = await res.json();
+      if (data.success) {
+        setUsers((prev) => prev.filter((u) => u.userId !== userId));
+        setSnackbar({
+          open: true,
+          message: "User deleted",
+          severity: "success",
+        });
+      } else {
+        setSnackbar({
+          open: true,
+          message: data.message || "Delete failed",
+          severity: "error",
+        });
+      }
+    } catch (err) {
+      setSnackbar({ open: true, message: "Delete failed", severity: "error" });
+    }
+  };
+
+  const handleConfirm = async () => {
     if (confirmAction === "approve") {
       // TODO: Integrate with backend approve API
       setFeedbacks((fbs) => fbs.filter((fb) => fb.id !== selectedFeedback));
     } else if (confirmAction === "reject") {
       // TODO: Integrate with backend reject API
       setFeedbacks((fbs) => fbs.filter((fb) => fb.id !== selectedFeedback));
+    } else if (confirmAction === "deleteUser" && userToDelete) {
+      await handleDeleteUser(userToDelete.userId, true);
     }
     setConfirmOpen(false);
     setSelectedFeedback(null);
     setConfirmAction(null);
+    setUserToDelete(null);
   };
 
   const handlePwdChange = (e) =>
@@ -132,6 +175,9 @@ export default function UserPanelPage() {
 
   const handleUserFormChange = (e) =>
     setUserForm({ ...userForm, [e.target.name]: e.target.value });
+
+  const handleEditPwdChange = (e) => setEditPwd(e.target.value);
+
   const handleUserSubmit = (e) => {
     e.preventDefault();
     setUsers((prev) => {
@@ -290,7 +336,11 @@ export default function UserPanelPage() {
       <Dialog
         open={showUserDialog}
         disableScrollLock
-        onClose={() => setShowUserDialog(false)}
+        onClose={() => {
+          setShowUserDialog(false);
+          setIsEditMode(false);
+          setEditPwd("");
+        }}
         PaperProps={{
           sx: modalPaperSx,
         }}
@@ -313,7 +363,7 @@ export default function UserPanelPage() {
             width: "100%",
           }}
         >
-          Create User
+          {isEditMode ? "Edit User " : "Create User"}
         </DialogTitle>
         <form onSubmit={handleUserSubmit} style={{ width: "100%" }}>
           <DialogContent sx={{ pt: 1, width: "100%" }}>
@@ -325,8 +375,24 @@ export default function UserPanelPage() {
               fullWidth
               margin="normal"
               required
-              sx={{ borderRadius: 2 }}
               size={isXs ? "small" : "medium"}
+              disabled={isEditMode}
+              sx={{
+                borderRadius: 2,
+                "& .MuiInputBase-input.Mui-disabled": {
+                  color: "#222 !important",
+                  WebkitTextFillColor: "#222 !important",
+                  fontWeight: 600,
+                  opacity: 1,
+                  background: "#f5f5f5",
+                  textAlign: "center",
+                },
+                "& .MuiInputLabel-root.Mui-disabled": {
+                  color: "#222 !important",
+                  fontWeight: 700,
+                  opacity: 1,
+                },
+              }}
             />
             <TextField
               label="Role"
@@ -394,10 +460,28 @@ export default function UserPanelPage() {
               <MenuItem value="Moderator">Moderator</MenuItem>
               <MenuItem value="Admin">Admin</MenuItem>
             </TextField>
+            {isEditMode && (
+              <TextField
+                label="Change Password"
+                name="editPwd"
+                type="password"
+                value={editPwd}
+                onChange={handleEditPwdChange}
+                fullWidth
+                margin="normal"
+                sx={{ borderRadius: 2 }}
+                size={isXs ? "small" : "medium"}
+                autoComplete="new-password"
+              />
+            )}
           </DialogContent>
           <DialogActions sx={{ justifyContent: "center", pb: 2 }}>
             <Button
-              onClick={() => setShowUserDialog(false)}
+              onClick={() => {
+                setShowUserDialog(false);
+                setIsEditMode(false);
+                setEditPwd("");
+              }}
               variant="outlined"
               color="primary"
               sx={{ borderRadius: 3, minWidth: 100, fontWeight: 700 }}
@@ -410,7 +494,7 @@ export default function UserPanelPage() {
               color="primary"
               sx={{ borderRadius: 3, minWidth: 100, fontWeight: 700 }}
             >
-              Save
+              {isEditMode ? "Save" : "Save"}
             </Button>
           </DialogActions>
         </form>
@@ -444,7 +528,13 @@ export default function UserPanelPage() {
             pb: 0,
           }}
         >
-          {confirmAction === "approve" ? "Approve Feedback" : "Reject Feedback"}
+          {confirmAction === "approve"
+            ? "Approve"
+            : confirmAction === "reject"
+            ? "Reject"
+            : confirmAction === "deleteUser"
+            ? "Delete User"
+            : ""}
           <IconButton
             aria-label="close"
             onClick={() => setConfirmOpen(false)}
@@ -470,8 +560,56 @@ export default function UserPanelPage() {
           }}
         >
           <Typography align="center" sx={{ mb: 0, mt: 0, lineHeight: 1.2 }}>
-            Are you sure you want to {confirmAction} this feedback?
+            {confirmAction === "deleteUser"
+              ? `Are you sure you want to delete the user?`
+              : `Are you sure you want to ${confirmAction} this feedback?`}
           </Typography>
+          {confirmAction === "deleteUser" && userToDelete && (
+            <Box sx={{ mt: 2, mb: 1, textAlign: "center" }}>
+              <Typography
+                variant="subtitle2"
+                sx={{ fontWeight: 600, fontSize: { xs: 15, md: 18 } }}
+              >
+                User ID:{" "}
+                <span style={{ fontWeight: 400 }}>{userToDelete.userId}</span>
+              </Typography>
+              <Typography
+                variant="subtitle2"
+                sx={{ fontWeight: 600, fontSize: { xs: 15, md: 18 } }}
+              >
+                Role:{" "}
+                <span style={{ fontWeight: 400 }}>{userToDelete.role}</span>
+              </Typography>
+            </Box>
+          )}
+          {(confirmAction === "approve" || confirmAction === "reject") &&
+            (() => {
+              const fb = feedbacks.find((f) => f.id === selectedFeedback);
+              if (!fb) return null;
+              return (
+                <Box sx={{ mt: 2, mb: 1, textAlign: "center" }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ fontWeight: 600, fontSize: { xs: 15, md: 18 } }}
+                  >
+                    Code:{" "}
+                    <span style={{ fontWeight: 400 }}>{fb.suggestedCode}</span>
+                  </Typography>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ fontWeight: 600, fontSize: { xs: 15, md: 18 } }}
+                  >
+                    User: <span style={{ fontWeight: 400 }}>{fb.user}</span>
+                  </Typography>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ fontWeight: 600, fontSize: { xs: 15, md: 18 } }}
+                  >
+                    Date: <span style={{ fontWeight: 400 }}>{fb.date}</span>
+                  </Typography>
+                </Box>
+              );
+            })()}
         </DialogContent>
         <DialogActions
           sx={{
@@ -497,7 +635,13 @@ export default function UserPanelPage() {
             color={confirmAction === "approve" ? "success" : "error"}
             sx={{ borderRadius: 3, minWidth: 100, fontWeight: 700 }}
           >
-            {confirmAction === "approve" ? "Approve" : "Reject"}
+            {confirmAction === "approve"
+              ? "Approve"
+              : confirmAction === "reject"
+              ? "Reject"
+              : confirmAction === "deleteUser"
+              ? "Delete User"
+              : ""}{" "}
           </Button>
         </DialogActions>
       </Dialog>
@@ -547,6 +691,9 @@ export default function UserPanelPage() {
                   <TableCell align="center" sx={{ fontWeight: 700 }}>
                     Actions
                   </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700 }}>
+                    Delete
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -559,6 +706,8 @@ export default function UserPanelPage() {
                         size={isXs ? "small" : "medium"}
                         onClick={() => {
                           setUserForm(u);
+                          setEditPwd("");
+                          setIsEditMode(true);
                           setShowUserDialog(true);
                         }}
                         sx={{
@@ -568,6 +717,18 @@ export default function UserPanelPage() {
                       >
                         Edit
                       </Button>
+                    </TableCell>
+                    <TableCell align="center">
+                      <IconButton
+                        color="error"
+                        onClick={() => {
+                          setUserToDelete(u);
+                          setConfirmAction("deleteUser");
+                          setConfirmOpen(true);
+                        }}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -754,9 +915,10 @@ export default function UserPanelPage() {
             borderRadius: "50%",
             boxShadow: 2,
             "&:hover": {
-              background: "#ffeaea",
-              color: "#fff",
-              borderColor: "#d32f2f",
+              background: "#f3f3f3",
+              color: "#d32f2f",
+              borderColor: "#e0e0e0",
+              boxShadow: "inset 0 2px 8px rgba(0,0,0,0.08)",
             },
             zIndex: 2,
           }}
