@@ -52,7 +52,12 @@ export default function MainLayout() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
+  // --- Dummy flow ---
+  /*
   const userId = "emp";
+  */
+
+  const userId = localStorage.getItem("userId") || "Guest";
 
   const [anchorEl, setAnchorEl] = useState(null);
   const openProfileMenu = Boolean(anchorEl);
@@ -61,7 +66,7 @@ export default function MainLayout() {
 
   const handleSignOut = () => {
     handleProfileClose();
-    // TODO: Add real sign out logic here (clear tokens, etc)
+    localStorage.removeItem("userId");
     navigate("/login");
   };
 
@@ -277,7 +282,6 @@ export default function MainLayout() {
             </>
           ) : (
             <>
-              {/* Left Logo */}
               <Box
                 sx={{
                   display: "flex",
@@ -295,7 +299,6 @@ export default function MainLayout() {
                   onClick={() => navigate("/")}
                 />
               </Box>
-              {/* Centered Title */}
               <Box
                 sx={{
                   flex: "0 0 auto",
@@ -324,7 +327,6 @@ export default function MainLayout() {
                   BOROSIL LENS
                 </Typography>
               </Box>
-              {/* Nav and Profile - right aligned */}
               <Box
                 sx={{
                   flex: 1,
@@ -405,7 +407,6 @@ export default function MainLayout() {
               </Box>
             </>
           )}
-          {/* Profile Menu */}
           <Menu
             id="profile-menu"
             anchorEl={anchorEl}

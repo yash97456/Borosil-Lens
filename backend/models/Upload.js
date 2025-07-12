@@ -1,4 +1,3 @@
-// filepath: [Upload.js](http://_vscodecontentref_/3)
 const bigquery = require("../utils/db");
 
 exports.saveUpload = async (file, sku, userId) => {

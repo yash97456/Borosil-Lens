@@ -50,6 +50,7 @@ export default function SearchPage() {
   const [preview, setPreview] = useState(null);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const fileInputRef = useRef();
   const cameraInputRef = useRef();
   const resultsRef = useRef();
@@ -64,10 +65,46 @@ export default function SearchPage() {
     if (savedPreview) setPreview(savedPreview);
   }, []);
 
+  // --- Dummy flow ---
+  /*
   const fetchResults = async (imgFile) => {
     return new Promise((resolve) =>
       setTimeout(() => resolve(fakeResults), 1200)
     );
+  };
+  */
+
+  const fetchResults = async (imageFile) => {
+    setLoading(true);
+    setError("");
+    try {
+      const formData = new FormData();
+      formData.append("image", imageFile);
+
+      const res = await fetch(
+        `${
+          process.env.REACT_APP_API_URL || "import.meta.env.VITE_API_URL/api/search"
+        }`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setResults(data.results || []);
+        localStorage.setItem(
+          "searchResults",
+          JSON.stringify(data.results || [])
+        );
+        if (preview) localStorage.setItem("searchPreview", preview);
+      } else {
+        setError(data.message || "Search failed.");
+      }
+    } catch (err) {
+      setError("Network error.");
+    }
+    setLoading(false);
   };
 
   const handleFileChange = (e) => {
@@ -95,13 +132,8 @@ export default function SearchPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setResults([]);
-    const res = await fetchResults(image);
-    setResults(res);
-    setLoading(false);
-    localStorage.setItem("searchResults", JSON.stringify(res));
-    if (preview) localStorage.setItem("searchPreview", preview);
+    await fetchResults(image);
     setTimeout(() => {
       if (resultsRef.current) {
         resultsRef.current.scrollIntoView({
@@ -243,19 +275,25 @@ export default function SearchPage() {
         </form>
       </Paper>
       {loading && <LinearProgress sx={{ mb: 2 }} />}
+      {error && (
+        <Typography color="error" sx={{ textAlign: "center", mb: 2 }}>
+          {error}
+        </Typography>
+      )}
       {results.length > 0 && (
         <Box ref={resultsRef}>
           <Box
             sx={{
               display: "flex",
               flexDirection: isMobile ? "column" : "row",
-              alignItems: isMobile ? "stretch" : "center",
-              justifyContent: isMobile ? "flex-start" : "center",
+              alignItems: "center",
+              justifyContent: isMobile ? "center" : "flex-start",
+              position: "relative",
               mb: isMobile ? 2 : 3,
               mt: 6,
               gap: isMobile ? 1.5 : 3,
               width: "100%",
-              textAlign: isMobile ? "center" : "left",
+              textAlign: "center",
             }}
           >
             <Typography
@@ -265,7 +303,8 @@ export default function SearchPage() {
                 fontSize: { xs: 22, sm: 26, md: 30 },
                 letterSpacing: 0.5,
                 mb: isMobile ? 0.5 : 0,
-                flex: "none",
+                flex: 1,
+                textAlign: "center",
               }}
             >
               Top 3 Identified SKUs
@@ -276,8 +315,10 @@ export default function SearchPage() {
                 style={{
                   display: "inline-block",
                   borderRadius: 50,
-                  marginLeft: 24,
-                  marginTop: 0,
+                  position: "absolute",
+                  right: 0,
+                  top: "-15%",
+                  transform: "translateY(-50%)",
                   width: "auto",
                 }}
               >

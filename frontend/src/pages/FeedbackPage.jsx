@@ -40,6 +40,55 @@ export default function FeedbackPage() {
     severity: "success",
   });
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    const feedbackData = {
+      image: uploadedImage,
+      suggestedCode: code.label,
+      user: localStorage.getItem("userId") || "emp456",
+      date: new Date().toISOString().slice(0, 10),
+    };
+
+    try {
+      const res = await fetch(
+        `${
+          process.env.REACT_APP_API_URL || "import.meta.env.VITE_API_URL/api/feedback"
+        }`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(feedbackData),
+        }
+      );
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setCode(null);
+        setSnackbar({
+          open: true,
+          message: "Feedback submitted!",
+          severity: "success",
+        });
+      } else {
+        setSnackbar({
+          open: true,
+          message: data.message || "Submission failed.",
+          severity: "error",
+        });
+      }
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: "Network error.",
+        severity: "error",
+      });
+    }
+    setSubmitting(false);
+  };
+
+  // --- Dummy flow ---
+  /*
   const handleSubmit = (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -52,7 +101,6 @@ export default function FeedbackPage() {
         date: new Date().toISOString().slice(0, 10),
       })
     );
-    // TODO: Replace with real API call
     setTimeout(() => {
       setSubmitting(false);
       setCode(null);
@@ -63,6 +111,7 @@ export default function FeedbackPage() {
       });
     }, 1000);
   };
+  */
 
   return (
     <Paper sx={{ maxWidth: 400, mx: "auto", p: 4 }}>

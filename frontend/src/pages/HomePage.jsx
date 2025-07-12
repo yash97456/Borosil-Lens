@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Box, Paper, Typography, Grid, Button } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -13,11 +14,41 @@ const subtleMotion = {
 
 export default function HomePage() {
   const navigate = useNavigate();
-  // TODO: Replace with real API data
+  const [stats, setStats] = useState({ totalCodes: 0, totalImages: 0 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // --- Dummy flow ---
+  /*
   const stats = {
     totalCodes: 32,
     totalImages: 34,
   };
+  */
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const res = await fetch(
+          `${
+            process.env.REACT_APP_API_URL || "import.meta.env.VITE_API_URL/api/stats"
+          }`
+        );
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setStats(data.stats);
+        } else {
+          setError(data.message || "Failed to fetch stats.");
+        }
+      } catch (err) {
+        setError("Network error.");
+      }
+      setLoading(false);
+    };
+    fetchStats();
+  }, []);
 
   return (
     <Box>
@@ -35,7 +66,7 @@ export default function HomePage() {
                 Total Spare Part Codes
               </Typography>
               <Typography variant="h3" fontWeight={700}>
-                {stats.totalCodes}
+                {loading ? "..." : stats.totalCodes}
               </Typography>
             </Paper>
           </motion.div>
@@ -47,12 +78,17 @@ export default function HomePage() {
                 Total Images Collected
               </Typography>
               <Typography variant="h3" fontWeight={700}>
-                {stats.totalImages}
+                {loading ? "..." : stats.totalImages}
               </Typography>
             </Paper>
           </motion.div>
         </Grid>
       </Grid>
+      {error && (
+        <Typography color="error" sx={{ textAlign: "center", mb: 2 }}>
+          {error}
+        </Typography>
+      )}
       <Grid container spacing={2} justifyContent="center">
         <Grid item>
           <motion.div {...subtleMotion}>

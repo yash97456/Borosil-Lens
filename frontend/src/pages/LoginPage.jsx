@@ -29,20 +29,41 @@ export default function LoginPage() {
   const theme = useTheme();
   const isXs = useMediaQuery(theme.breakpoints.down("sm"));
 
+  // --- Dummy flow ---
+
+  // const validateWithBigQuery = async ({ userId, password }) => {
+  //   return new Promise((resolve) => {
+  //     setTimeout(() => {
+  //       if (userId === "admin" && password === "admin123") {
+  //         resolve({ success: true, role: "Admin" });
+  //       } else {
+  //         resolve({
+  //           success: false,
+  //           message: "Invalid credentials or permissions",
+  //         });
+  //       }
+  //     }, 800);
+  //   });
+  // };
+
   const validateWithBigQuery = async ({ userId, password }) => {
-    // TODO: Replace with real BigQuery API call
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        if (userId === "admin" && password === "admin123") {
-          resolve({ success: true, role: "Admin" });
-        } else {
-          resolve({
-            success: false,
-            message: "Invalid credentials or permissions",
-          });
-        }
-      }, 800);
-    });
+    try {
+      const res = await fetch(
+        `${
+          process.env.REACT_APP_API_URL || "import.meta.env.VITE_API_URL/api/login"
+        }?userId=${encodeURIComponent(userId)}&password=${encodeURIComponent(
+          password
+        )}`,
+        { method: "GET" }
+      );
+      if (!res.ok) {
+        return { success: false, message: "Server error" };
+      }
+      const data = await res.json();
+      return data;
+    } catch (err) {
+      return { success: false, message: "Network error" };
+    }
   };
 
   const handleChange = (e) =>

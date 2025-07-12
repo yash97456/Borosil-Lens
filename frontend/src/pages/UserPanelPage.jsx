@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -28,6 +28,8 @@ import { Snackbar, Alert } from "@mui/material";
 
 const uploadedImage = localStorage.getItem("uploadedImage");
 
+// --- Dummy flow ---
+/*
 const fakeFeedbacks = [
   {
     id: 1,
@@ -49,11 +51,12 @@ const fakeUsers = [
   { id: 1, userId: "emp123", role: "Moderator" },
   { id: 2, userId: "emp456", role: "User" },
 ];
+*/
 
 export default function UserPanelPage() {
   const [role] = useState("Admin");
-  const [feedbacks, setFeedbacks] = useState(fakeFeedbacks);
-  const [users, setUsers] = useState(fakeUsers);
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [users, setUsers] = useState([]);
   const [showUserDialog, setShowUserDialog] = useState(false);
   const [userForm, setUserForm] = useState({ userId: "", role: "" });
   const [showPwdDialog, setShowPwdDialog] = useState(false);
@@ -100,6 +103,39 @@ export default function UserPanelPage() {
     outline: "none",
   };
 
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await fetch(
+          `${
+            process.env.REACT_APP_API_URL ||
+            "import.meta.env.VITE_API_URL/api/admin/users"
+          }`
+        );
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setUsers(data.users);
+        }
+      } catch {}
+    };
+    const fetchFeedbacks = async () => {
+      try {
+        const res = await fetch(
+          `${
+            process.env.REACT_APP_API_URL ||
+            "import.meta.env.VITE_API_URL/api/admin/feedback/pending"
+          }`
+        );
+        const data = await res.json();
+        if (res.ok && data.feedbacks) {
+          setFeedbacks(data.feedbacks);
+        }
+      } catch {}
+    };
+    fetchUsers();
+    fetchFeedbacks();
+  }, []);
+
   const handleApprove = (id) => {
     setConfirmAction("approve");
     setSelectedFeedback(id);
@@ -110,6 +146,7 @@ export default function UserPanelPage() {
     setSelectedFeedback(id);
     setConfirmOpen(true);
   };
+
   const handleDeleteUser = async (userId, silent = false) => {
     if (
       !silent &&
@@ -119,8 +156,9 @@ export default function UserPanelPage() {
     try {
       const res = await fetch(
         `${
-          process.env.REACT_APP_API_URL || "http://localhost:5000/api"
-        }/admin/user/${userId}`,
+          process.env.REACT_APP_API_URL ||
+          "import.meta.env.VITE_API_URL/api/admin/user/" + userId
+        }`,
         { method: "DELETE" }
       );
       const data = await res.json();
@@ -144,12 +182,47 @@ export default function UserPanelPage() {
   };
 
   const handleConfirm = async () => {
-    if (confirmAction === "approve") {
-      // TODO: Integrate with backend approve API
-      setFeedbacks((fbs) => fbs.filter((fb) => fb.id !== selectedFeedback));
-    } else if (confirmAction === "reject") {
-      // TODO: Integrate with backend reject API
-      setFeedbacks((fbs) => fbs.filter((fb) => fb.id !== selectedFeedback));
+    if (
+      (confirmAction === "approve" || confirmAction === "reject") &&
+      selectedFeedback
+    ) {
+      try {
+        const res = await fetch(
+          `${
+            process.env.REACT_APP_API_URL ||
+            "import.meta.env.VITE_API_URL/api/admin/feedback/approve"
+          }`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              feedbackId: selectedFeedback,
+              approve: confirmAction === "approve",
+            }),
+          }
+        );
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setFeedbacks((fbs) => fbs.filter((fb) => fb.id !== selectedFeedback));
+          setSnackbar({
+            open: true,
+            message: data.message || "Feedback updated",
+            severity: "success",
+          });
+        } else {
+          setSnackbar({
+            open: true,
+            message: data.message || "Action failed",
+            severity: "error",
+          });
+        }
+      } catch (err) {
+        setSnackbar({
+          open: true,
+          message: "Network error",
+          severity: "error",
+        });
+      }
     } else if (confirmAction === "deleteUser" && userToDelete) {
       await handleDeleteUser(userToDelete.userId, true);
     }
@@ -161,16 +234,43 @@ export default function UserPanelPage() {
 
   const handlePwdChange = (e) =>
     setPwdForm({ ...pwdForm, [e.target.name]: e.target.value });
-  const handlePwdSubmit = (e) => {
+  const handlePwdSubmit = async (e) => {
     e.preventDefault();
-    // TODO: Call change password API
+    try {
+      const res = await fetch(
+        `${
+          process.env.REACT_APP_API_URL ||
+          "import.meta.env.VITE_API_URL/api/admin/change-password"
+        }`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: localStorage.getItem("userId"),
+            oldPwd: pwdForm.oldPwd,
+            newPwd: pwdForm.newPwd,
+          }),
+        }
+      );
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSnackbar({
+          open: true,
+          message: "Password changed!",
+          severity: "success",
+        });
+      } else {
+        setSnackbar({
+          open: true,
+          message: data.message || "Change failed",
+          severity: "error",
+        });
+      }
+    } catch (err) {
+      setSnackbar({ open: true, message: "Network error", severity: "error" });
+    }
     setShowPwdDialog(false);
     setPwdForm({ oldPwd: "", newPwd: "" });
-    setSnackbar({
-      open: true,
-      message: "Password changed!",
-      severity: "success",
-    });
   };
 
   const handleUserFormChange = (e) =>
@@ -178,35 +278,55 @@ export default function UserPanelPage() {
 
   const handleEditPwdChange = (e) => setEditPwd(e.target.value);
 
-  const handleUserSubmit = (e) => {
+  const handleUserSubmit = async (e) => {
     e.preventDefault();
-    setUsers((prev) => {
-      const exists = prev.find((u) => u.userId === userForm.userId);
-      if (exists) {
+    try {
+      const res = await fetch(
+        `${
+          process.env.REACT_APP_API_URL ||
+          "import.meta.env.VITE_API_URL/api/admin/user"
+        }`,
+        {
+          method: isEditMode ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: userForm.userId,
+            role: userForm.role,
+            ...(isEditMode && editPwd ? { password: editPwd } : {}),
+          }),
+        }
+      );
+      const data = await res.json();
+      if (res.ok && data.success) {
         setSnackbar({
           open: true,
-          message: "User Updated",
+          message: isEditMode ? "User Updated" : "User Created",
           severity: "success",
         });
-
-        return prev.map((u) =>
-          u.userId === userForm.userId ? { ...u, role: userForm.role } : u
+        const usersRes = await fetch(
+          `${
+            process.env.REACT_APP_API_URL ||
+            "import.meta.env.VITE_API_URL/api/admin/users"
+          }`
         );
+        const usersData = await usersRes.json();
+        if (usersRes.ok && usersData.success) {
+          setUsers(usersData.users);
+        }
+      } else {
+        setSnackbar({
+          open: true,
+          message: data.message || "Action failed",
+          severity: "error",
+        });
       }
-      setSnackbar({ open: true, message: "User Created", severity: "success" });
-
-      return [
-        ...prev,
-        {
-          id: prev.length ? Math.max(...prev.map((u) => u.id)) + 1 : 1,
-          userId: userForm.userId,
-          role: userForm.role,
-        },
-      ];
-    });
+    } catch (err) {
+      setSnackbar({ open: true, message: "Network error", severity: "error" });
+    }
     setShowUserDialog(false);
     setUserForm({ userId: "", role: "" });
-    setSnackbar({ open: true, message: "User Created", severity: "success" });
+    setIsEditMode(false);
+    setEditPwd("");
   };
 
   return (

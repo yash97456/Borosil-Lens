@@ -37,6 +37,7 @@ export default function UploadPage() {
       } catch {}
     }
   }, []);
+
   const [spareCode, setSpareCode] = useState(null);
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -78,6 +79,8 @@ export default function UploadPage() {
     if (cameraInputRef.current) cameraInputRef.current.value = "";
   };
 
+  // --- Dummy flow ---
+  /*
   const handleSubmit = (e) => {
     e.preventDefault();
     setUploading(true);
@@ -92,6 +95,54 @@ export default function UploadPage() {
         severity: "success",
       });
     }, 1000);
+  };
+  */
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!spareCode || !image) return;
+    setUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("sku", spareCode.label);
+      formData.append("image", image);
+      formData.append("userId", localStorage.getItem("userId") || "emp456");
+
+      const res = await fetch(
+        `${
+          process.env.REACT_APP_API_URL || "import.meta.env.VITE_API_URL/api/upload"
+        }`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setImage(null);
+        setPreview(null);
+        setSpareCode(null);
+        setSnackbar({
+          open: true,
+          message: "Image Uploaded",
+          severity: "success",
+        });
+      } else {
+        setSnackbar({
+          open: true,
+          message: data.message || "Upload failed.",
+          severity: "error",
+        });
+      }
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: "Network error.",
+        severity: "error",
+      });
+    }
+    setUploading(false);
   };
 
   return (
