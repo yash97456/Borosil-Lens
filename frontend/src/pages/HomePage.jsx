@@ -33,7 +33,8 @@ export default function HomePage() {
       try {
         const res = await fetch(
           `${
-            process.env.REACT_APP_API_URL || "import.meta.env.VITE_API_URL/api/stats"
+            process.env.REACT_APP_API_URL ||
+            "import.meta.env.VITE_API_URL/api/stats"
           }`
         );
         const data = await res.json();

@@ -10,12 +10,13 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 import { Snackbar, Alert } from "@mui/material";
 
-const fakeCodes = [
-  { label: "SP-1001" },
-  { label: "SP-1002" },
-  { label: "SP-1003" },
-  { label: "SP-1004" },
-];
+// --- Dummy flow ---
+// const fakeCodes = [
+//   { label: "SP-1001" },
+//   { label: "SP-1002" },
+//   { label: "SP-1003" },
+//   { label: "SP-1004" },
+// ];
 
 export default function FeedbackPage() {
   const location = useLocation();
@@ -33,12 +34,29 @@ export default function FeedbackPage() {
   }
 
   const [code, setCode] = useState(null);
+  const [codes, setCodes] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
     severity: "success",
   });
+
+  useEffect(() => {
+    const fetchCodes = async () => {
+      try {
+        const res = await fetch(
+          `${
+            process.env.REACT_APP_API_URL ||
+            "import.meta.env.VITE_API_URL/api/codes"
+          }`
+        );
+        const data = await res.json();
+        if (res.ok && data.success) setCodes(data.codes);
+      } catch (err) {}
+    };
+    fetchCodes();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -54,7 +72,8 @@ export default function FeedbackPage() {
     try {
       const res = await fetch(
         `${
-          process.env.REACT_APP_API_URL || "import.meta.env.VITE_API_URL/api/feedback"
+          process.env.REACT_APP_API_URL ||
+          "import.meta.env.VITE_API_URL/api/feedback"
         }`,
         {
           method: "POST",
@@ -137,7 +156,7 @@ export default function FeedbackPage() {
       </Typography>
       <form onSubmit={handleSubmit}>
         <Autocomplete
-          options={fakeCodes}
+          options={codes}
           value={code}
           onChange={(_, v) => setCode(v)}
           renderInput={(params) => (

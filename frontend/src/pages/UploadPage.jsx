@@ -13,12 +13,12 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import { Snackbar, Alert } from "@mui/material";
 
-const fakeCodes = [
-  { label: "SP-1001" },
-  { label: "SP-1002" },
-  { label: "SP-1003" },
-  { label: "SP-1004" },
-];
+// const fakeCodes = [
+//   { label: "SP-1001" },
+//   { label: "SP-1002" },
+//   { label: "SP-1003" },
+//   { label: "SP-1004" },
+// ];
 
 export default function UploadPage() {
   useEffect(() => {
@@ -38,17 +38,34 @@ export default function UploadPage() {
     }
   }, []);
 
-  const [spareCode, setSpareCode] = useState(null);
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef();
   const cameraInputRef = useRef();
+  const [codes, setCodes] = useState([]);
+  const [spareCode, setSpareCode] = useState(null);
+
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
     severity: "success",
   });
+  useEffect(() => {
+    const fetchCodes = async () => {
+      try {
+        const res = await fetch(
+          `${
+            process.env.REACT_APP_API_URL ||
+            "import.meta.env.VITE_API_URL/api/codes"
+          }`
+        );
+        const data = await res.json();
+        if (res.ok && data.success) setCodes(data.codes);
+      } catch (err) {}
+    };
+    fetchCodes();
+  }, []);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -111,7 +128,8 @@ export default function UploadPage() {
 
       const res = await fetch(
         `${
-          process.env.REACT_APP_API_URL || "import.meta.env.VITE_API_URL/api/upload"
+          process.env.REACT_APP_API_URL ||
+          "import.meta.env.VITE_API_URL/api/upload"
         }`,
         {
           method: "POST",
@@ -152,7 +170,7 @@ export default function UploadPage() {
       </Typography>
       <form onSubmit={handleSubmit}>
         <Autocomplete
-          options={fakeCodes}
+          options={codes}
           value={spareCode}
           onChange={(_, v) => setSpareCode(v)}
           renderInput={(params) => (
