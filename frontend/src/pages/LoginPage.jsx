@@ -29,33 +29,16 @@ export default function LoginPage() {
   const theme = useTheme();
   const isXs = useMediaQuery(theme.breakpoints.down("sm"));
 
-  // --- Dummy flow ---
-
-  // const validateWithBigQuery = async ({ userId, password }) => {
-  //   return new Promise((resolve) => {
-  //     setTimeout(() => {
-  //       if (userId === "admin" && password === "admin123") {
-  //         resolve({ success: true, role: "Admin" });
-  //       } else {
-  //         resolve({
-  //           success: false,
-  //           message: "Invalid credentials or permissions",
-  //         });
-  //       }
-  //     }, 800);
-  //   });
-  // };
-
   const validateWithBigQuery = async ({ userId, password }) => {
     try {
-      const res = await fetch(
-        `${
-          process.env.REACT_APP_API_URL || "import.meta.env.VITE_API_URL/api/login"
-        }?userId=${encodeURIComponent(userId)}&password=${encodeURIComponent(
-          password
-        )}`,
-        { method: "GET" }
-      );
+      const url = import.meta.env.VITE_API_URL
+        ? `${import.meta.env.VITE_API_URL}/api/login`
+        : "/api/login";
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, password }),
+      });
       if (!res.ok) {
         return { success: false, message: "Server error" };
       }
@@ -65,7 +48,6 @@ export default function LoginPage() {
       return { success: false, message: "Network error" };
     }
   };
-
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -88,8 +70,9 @@ export default function LoginPage() {
     setLoading(false);
 
     if (result.success) {
-      localStorage.setItem("userId", form.userId);
-
+      localStorage.setItem("userId", result.userId);
+      localStorage.setItem("username", result.username);
+      localStorage.setItem("role", result.role);
       setSnackbar({
         open: true,
         message: "Login successful!",
@@ -98,13 +81,6 @@ export default function LoginPage() {
       setTimeout(() => {
         navigate("/");
       }, 1000);
-    } else {
-      setError(result.message || "Login failed");
-      setSnackbar({
-        open: true,
-        message: result.message || "Login failed",
-        severity: "error",
-      });
     }
   };
 

@@ -1,20 +1,19 @@
-const { bigquery } = require("../config/bigquery");
+const axios = require("axios");
+const { PY_API_BASE_URL } = require("../utils/config");
 
 exports.getStats = async (req, res, next) => {
   try {
-    const [codes] = await bigquery.query(
-      "SELECT COUNT(DISTINCT sku) as totalCodes FROM `your_dataset.uploads`"
-    );
-    const [images] = await bigquery.query(
-      "SELECT COUNT(*) as totalImages FROM `your_dataset.uploads`"
-    );
-    res.json({
-      success: true,
-      stats: {
-        totalCodes: codes[0]?.totalCodes || 0,
-        totalImages: images[0]?.totalImages || 0,
-      },
-    });
+    const response = await axios.get(`${PY_API_BASE_URL}/dataset-stats`);
+    if (response.data && response.data.success && response.data.data) {
+      res.json({
+        success: true,
+        stats: response.data.data,
+      });
+    } else {
+      res
+        .status(500)
+        .json({ success: false, message: "Invalid stats response" });
+    }
   } catch (err) {
     next(err);
   }

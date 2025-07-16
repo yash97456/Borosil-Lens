@@ -12,13 +12,51 @@ import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DeleteIcon from "@mui/icons-material/Delete";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import { Snackbar, Alert } from "@mui/material";
+import { styled } from "@mui/material/styles";
 
-// const fakeCodes = [
-//   { label: "SP-1001" },
-//   { label: "SP-1002" },
-//   { label: "SP-1003" },
-//   { label: "SP-1004" },
-// ];
+const StyledPopper = styled("div")(({ theme }) => ({
+  "& .MuiAutocomplete-listbox": {
+    maxHeight: 260,
+    overflowY: "auto",
+    padding: 0,
+    scrollbarWidth: "thin",
+    scrollbarColor: "#1976d2 #f5f5f5",
+    "&::-webkit-scrollbar": {
+      width: 8,
+      background: "#f5f5f5",
+      borderRadius: 8,
+    },
+    "&::-webkit-scrollbar-thumb": {
+      background: "#1976d2",
+      borderRadius: 8,
+    },
+    "&::-webkit-scrollbar-thumb:hover": {
+      background: "#1565c0",
+    },
+    background: "#fff",
+    borderRadius: 8,
+    boxShadow: "0 4px 24px 0 rgba(0,0,0,0.08)",
+  },
+  "& .MuiAutocomplete-option": {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    textAlign: "center",
+    fontWeight: 500,
+    fontSize: 16,
+    padding: "10px 0",
+    transition: "background 0.18s",
+    background: "#fff",
+    "&[aria-selected='true']": {
+      background: "#e3f2fd",
+      color: "#1976d2",
+    },
+    "&:hover": {
+      background: "#e3f2fd",
+      color: "#1976d2",
+    },
+  },
+}));
 
 export default function UploadPage() {
   useEffect(() => {
@@ -51,15 +89,11 @@ export default function UploadPage() {
     message: "",
     severity: "success",
   });
+
   useEffect(() => {
     const fetchCodes = async () => {
       try {
-        const res = await fetch(
-          `${
-            process.env.REACT_APP_API_URL ||
-            "import.meta.env.VITE_API_URL/api/codes"
-          }`
-        );
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/codes`);
         const data = await res.json();
         if (res.ok && data.success) setCodes(data.codes);
       } catch (err) {}
@@ -96,25 +130,6 @@ export default function UploadPage() {
     if (cameraInputRef.current) cameraInputRef.current.value = "";
   };
 
-  // --- Dummy flow ---
-  /*
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setUploading(true);
-    setTimeout(() => {
-      setUploading(false);
-      setImage(null);
-      setPreview(null);
-      setSpareCode(null);
-      setSnackbar({
-        open: true,
-        message: "Image Uploaded",
-        severity: "success",
-      });
-    }, 1000);
-  };
-  */
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!spareCode || !image) return;
@@ -122,14 +137,14 @@ export default function UploadPage() {
 
     try {
       const formData = new FormData();
-      formData.append("sku", spareCode.label);
-      formData.append("image", image);
-      formData.append("userId", localStorage.getItem("userId") || "emp456");
-
+      formData.append("file", image);
+      formData.append("sku_code", spareCode.label);
+      formData.append("username", localStorage.getItem("userId") || "emp456");
       const res = await fetch(
         `${
-          process.env.REACT_APP_API_URL ||
-          "import.meta.env.VITE_API_URL/api/upload"
+          import.meta.env.VITE_API_URL
+            ? `${import.meta.env.VITE_API_URL}/api/upload`
+            : "/api/upload"
         }`,
         {
           method: "POST",
@@ -156,7 +171,7 @@ export default function UploadPage() {
     } catch (err) {
       setSnackbar({
         open: true,
-        message: "Network error.",
+        message: "Network error",
         severity: "error",
       });
     }
@@ -171,17 +186,65 @@ export default function UploadPage() {
       <form onSubmit={handleSubmit}>
         <Autocomplete
           options={codes}
+          getOptionLabel={(option) =>
+            option.label +
+            (option.description ? ` - ${option.description}` : "")
+          }
           value={spareCode}
-          onChange={(_, v) => setSpareCode(v)}
+          onChange={(_, value) => setSpareCode(value)}
+          renderOption={(props, option) => (
+            <li
+              {...props}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                textAlign: "center",
+              }}
+            >
+              <span style={{ fontWeight: 600 }}>{option.label}</span>
+              {option.description && (
+                <span style={{ fontSize: 13, color: "#666" }}>
+                  {option.description}
+                </span>
+              )}
+            </li>
+          )}
           renderInput={(params) => (
             <TextField
               {...params}
-              label="Spare Part Code"
-              required
-              margin="normal"
-              placeholder="Search or Enter Code"
+              label="Search or Select Spare Part Code"
+              placeholder="Type to Search Codes..."
+              InputProps={{
+                ...params.InputProps,
+                sx: {
+                  borderRadius: 2,
+                  fontWeight: 500,
+                  fontSize: 16,
+                  bgcolor: "#f5faff",
+                },
+              }}
+              inputProps={{
+                ...params.inputProps,
+                style: { textAlign: "center" },
+              }}
             />
           )}
+          PaperComponent={({ children }) => (
+            <StyledPopper>{children}</StyledPopper>
+          )}
+          sx={{
+            mb: 2,
+            "& .MuiInputBase-root": {
+              borderRadius: 2,
+              fontWeight: 500,
+              fontSize: 16,
+              bgcolor: "#f5faff",
+            },
+            "& .MuiAutocomplete-endAdornment": {
+              right: 12,
+            },
+          }}
         />
         <Box
           onDrop={handleDrop}

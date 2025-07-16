@@ -18,24 +18,6 @@ import { motion } from "framer-motion";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import { useTheme } from "@mui/material/styles";
 
-const fakeResults = [
-  {
-    sku: "SP-1001",
-    name: "Gear Assembly",
-    confidence: 0.97,
-  },
-  {
-    sku: "SP-1002",
-    name: "Valve Kit",
-    confidence: 0.89,
-  },
-  {
-    sku: "SP-1003",
-    name: "Bearing Set",
-    confidence: 0.81,
-  },
-];
-
 const subtleMotion = {
   whileHover: {
     y: -2,
@@ -65,15 +47,6 @@ export default function SearchPage() {
     if (savedPreview) setPreview(savedPreview);
   }, []);
 
-  // --- Dummy flow ---
-  /*
-  const fetchResults = async (imgFile) => {
-    return new Promise((resolve) =>
-      setTimeout(() => resolve(fakeResults), 1200)
-    );
-  };
-  */
-
   const fetchResults = async (imageFile) => {
     setLoading(true);
     setError("");
@@ -83,7 +56,9 @@ export default function SearchPage() {
 
       const res = await fetch(
         `${
-          process.env.REACT_APP_API_URL || "import.meta.env.VITE_API_URL/api/search"
+          import.meta.env.VITE_API_URL
+            ? `${import.meta.env.VITE_API_URL}/api/search`
+            : "/api/search"
         }`,
         {
           method: "POST",
@@ -143,6 +118,9 @@ export default function SearchPage() {
       }
     }, 100);
   };
+
+  const predictedSku =
+    results && results.length > 0 ? results[0].sku_code : null;
 
   return (
     <Box>
@@ -287,7 +265,7 @@ export default function SearchPage() {
               display: "flex",
               flexDirection: isMobile ? "column" : "row",
               alignItems: "center",
-              justifyContent: isMobile ? "center" : "flex-start",
+              justifyContent: "center",
               position: "relative",
               mb: isMobile ? 2 : 3,
               mt: 6,
@@ -309,51 +287,43 @@ export default function SearchPage() {
             >
               Top 3 Identified SKUs
             </Typography>
-            {!isMobile && (
-              <motion.div
-                {...subtleMotion}
-                style={{
-                  display: "inline-block",
-                  borderRadius: 50,
-                  position: "absolute",
-                  right: 0,
-                  top: "-15%",
-                  transform: "translateY(-50%)",
-                  width: "auto",
-                }}
-              >
-                <Button
-                  variant="contained"
-                  sx={{
-                    fontWeight: 700,
-                    borderRadius: 50,
-                    px: 4,
-                    py: 1.2,
-                    bgcolor: "#f9a825",
-                    color: "#222",
-                    fontSize: 16,
-                    boxShadow: 2,
-                    background:
-                      "linear-gradient(90deg, #f9a825 60%, #ffd54f 100%)",
-                    minWidth: 220,
-                    "&:hover": {
-                      bgcolor: "#fbc02d",
-                      background:
-                        "linear-gradient(90deg, #ffd54f 60%, #f9a825 100%)",
-                      color: "#111",
-                    },
-                  }}
-                  onClick={() => {
-                    setResults([]);
-                    localStorage.removeItem("searchResults");
-                    localStorage.removeItem("searchPreview");
-                    navigate("/feedback", { state: { image: preview } });
-                  }}
-                >
-                  Not satisfied? Give Feedback
-                </Button>
-              </motion.div>
-            )}
+            <Button
+              variant="contained"
+              sx={{
+                fontWeight: 700,
+                borderRadius: 50,
+                px: 4,
+                py: 1.2,
+                bgcolor: "#f9a825",
+                color: "#222",
+                fontSize: 16,
+                boxShadow: 2,
+                background: "linear-gradient(90deg, #f9a825 60%, #ffd54f 100%)",
+                minWidth: 220,
+                ml: isMobile ? 0 : 4,
+                mt: isMobile ? 2 : 0,
+                width: isMobile ? "100%" : "auto",
+                "&:hover": {
+                  bgcolor: "#fbc02d",
+                  background:
+                    "linear-gradient(90deg, #ffd54f 60%, #f9a825 100%)",
+                  color: "#111",
+                },
+              }}
+              onClick={() => {
+                setResults([]);
+                localStorage.removeItem("searchResults");
+                localStorage.removeItem("searchPreview");
+                if (predictedSku) {
+                  navigate("/feedback", {
+                    state: { image: preview, predictedSku },
+                  });
+                }
+              }}
+              disabled={!predictedSku}
+            >
+              Not satisfied? Give Feedback
+            </Button>
           </Box>
           <Grid container spacing={2} justifyContent="center">
             {results.map((res, idx) => (
@@ -361,7 +331,7 @@ export default function SearchPage() {
                 item
                 xs={12}
                 md={4}
-                key={res.sku}
+                key={res.sku_code || idx}
                 sx={{
                   overflow: "visible",
                   ...(isMobile && {
@@ -427,7 +397,7 @@ export default function SearchPage() {
                         lineHeight: 1.1,
                       }}
                     >
-                      SKU: {res.sku}
+                      SKU: {res.sku_code}
                     </Typography>
                     <Typography
                       variant="body2"
@@ -438,53 +408,16 @@ export default function SearchPage() {
                         lineHeight: 1.1,
                       }}
                     >
-                      Confidence: {(res.confidence * 100).toFixed(1)}%
+                      Confidence:{" "}
+                      {res.similarity_score !== undefined
+                        ? `${(res.similarity_score * 100).toFixed(2)}%`
+                        : "N/A"}{" "}
                     </Typography>
                   </CardContent>
                 </Card>
               </Grid>
             ))}
           </Grid>
-          {isMobile && (
-            <Box sx={{ mt: 3, textAlign: "center" }}>
-              <motion.div
-                {...subtleMotion}
-                style={{ display: "inline-block", borderRadius: 50 }}
-              >
-                <Button
-                  variant="contained"
-                  sx={{
-                    fontWeight: 700,
-                    borderRadius: 50,
-                    px: 4,
-                    py: 1.2,
-                    bgcolor: "#f9a825",
-                    color: "#222",
-                    fontSize: 16,
-                    boxShadow: 2,
-                    background:
-                      "linear-gradient(90deg, #f9a825 60%, #ffd54f 100%)",
-                    minWidth: 220,
-                    width: "100%",
-                    "&:hover": {
-                      bgcolor: "#fbc02d",
-                      background:
-                        "linear-gradient(90deg, #ffd54f 60%, #f9a825 100%)",
-                      color: "#111",
-                    },
-                  }}
-                  onClick={() => {
-                    setResults([]);
-                    localStorage.removeItem("searchResults");
-                    localStorage.removeItem("searchPreview");
-                    navigate("/feedback", { state: { image: preview } });
-                  }}
-                >
-                  Not satisfied? Give Feedback
-                </Button>
-              </motion.div>
-            </Box>
-          )}
         </Box>
       )}
     </Box>

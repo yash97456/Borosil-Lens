@@ -1,33 +1,47 @@
 const bigquery = require("../utils/db");
 
-exports.submitFeedback = async (image, suggestedCode, user) => {
+exports.submitFeedback = async (
+  image_features,
+  predicted_sku,
+  correct_sku,
+  username
+) => {
   const query = `
-    INSERT INTO \`your_dataset.feedback\` (image, suggestedCode, user, status, submittedAt)
-    VALUES (@image, @suggestedCode, @user, 'pending', CURRENT_TIMESTAMP())
+    INSERT INTO \`borosil_lens.user_feedback\`
+    (feedback_id, username, predicted_sku, correct_sku, image_features, complaint_time, status)
+    VALUES (GENERATE_UUID(), @username, @predicted_sku, @correct_sku, @image_features, CURRENT_TIMESTAMP(), 'pending')
   `;
-  const options = { query, params: { image, suggestedCode, user } };
+  const options = {
+    query,
+    params: {
+      username,
+      predicted_sku,
+      correct_sku,
+      image_features,
+    },
+  };
   await bigquery.query(options);
 };
 
 exports.getPending = async () => {
   const query = `
-    SELECT * FROM \`your_dataset.feedback\`
+    SELECT * FROM \`borosil_lens.user_feedback\`
     WHERE status = 'pending'
-    ORDER BY submittedAt DESC
+    ORDER BY complaint_time DESC
   `;
   const [rows] = await bigquery.query({ query });
   return rows;
 };
 
-exports.updateStatus = async (feedbackId, approve) => {
+exports.updateStatus = async (feedbackId, status, admin_name) => {
   const query = `
-    UPDATE \`your_dataset.feedback\`
-    SET status = @status
-    WHERE id = @feedbackId
+    UPDATE \`borosil_lens.user_feedback\`
+    SET status = @status, admin_name = @admin_name, approval_time = CURRENT_TIMESTAMP()
+    WHERE feedback_id = @feedbackId
   `;
   const options = {
     query,
-    params: { status: approve ? "approved" : "rejected", feedbackId },
+    params: { status, admin_name, feedbackId },
   };
   await bigquery.query(options);
 };

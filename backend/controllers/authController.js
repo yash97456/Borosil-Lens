@@ -1,11 +1,17 @@
 const User = require("../models/User");
 
 exports.login = async (req, res, next) => {
-  const { userId, password } = req.query;
   try {
+    const { userId, password } = req.body;
+
     const user = await User.findByCredentials(userId, password);
     if (user) {
-      res.json({ success: true, role: user.role });
+      res.json({
+        success: true,
+        userId: user.id,
+        username: user.username,
+        role: user.role,
+      });
     } else {
       res.status(401).json({ success: false, message: "Invalid credentials" });
     }

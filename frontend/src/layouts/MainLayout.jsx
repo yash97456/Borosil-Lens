@@ -52,12 +52,9 @@ export default function MainLayout() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
-  // --- Dummy flow ---
-  /*
-  const userId = "emp";
-  */
-
   const userId = localStorage.getItem("userId") || "Guest";
+
+  const username = localStorage.getItem("username") || "Unknown";
 
   const [anchorEl, setAnchorEl] = useState(null);
   const openProfileMenu = Boolean(anchorEl);
@@ -437,7 +434,7 @@ export default function MainLayout() {
               }}
             >
               <Box sx={{ fontWeight: 900, fontSize: 16, color: "#111" }}>
-                User: {userId}
+                User: {username || "Unknown"}
               </Box>
             </MenuItem>
             <Divider sx={{ my: 0.5 }} />

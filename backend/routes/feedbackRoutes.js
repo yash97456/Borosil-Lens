@@ -1,7 +1,12 @@
 const express = require("express");
-const router = express.Router();
+const multer = require("multer");
 const feedbackController = require("../controllers/feedbackController");
+const router = express.Router();
 
-router.post("/", feedbackController.submitFeedback);
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
+router.post("/", upload.single("file"), feedbackController.submitFeedback);
+router.get("/pending", feedbackController.getPendingFeedback);
 
 module.exports = router;

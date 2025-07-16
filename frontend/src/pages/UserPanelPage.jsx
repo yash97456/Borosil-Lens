@@ -23,48 +23,29 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import DeleteIcon from "@mui/icons-material/Delete";
-
 import { Snackbar, Alert } from "@mui/material";
 
 const uploadedImage = localStorage.getItem("uploadedImage");
 
-// --- Dummy flow ---
-/*
-const fakeFeedbacks = [
-  {
-    id: 1,
-    image: uploadedImage || "https://source.unsplash.com/60x60/?spare-part",
-    suggestedCode: "SP-1004",
-    user: "emp123",
-    date: "2024-06-01",
-  },
-  {
-    id: 2,
-    image: uploadedImage || "https://source.unsplash.com/60x60/?machine",
-    suggestedCode: "SP-1005",
-    user: "emp456",
-    date: "2024-06-02",
-  },
-];
-
-const fakeUsers = [
-  { id: 1, userId: "emp123", role: "Moderator" },
-  { id: 2, userId: "emp456", role: "User" },
-];
-*/
-
 export default function UserPanelPage() {
-  const [role] = useState("Admin");
   const [feedbacks, setFeedbacks] = useState([]);
   const [users, setUsers] = useState([]);
   const [showUserDialog, setShowUserDialog] = useState(false);
-  const [userForm, setUserForm] = useState({ userId: "", role: "" });
+  const [userForm, setUserForm] = useState({
+    username: "",
+    password: "",
+    role: "",
+  });
+  const username = localStorage.getItem("username") || userForm.username || "";
   const [showPwdDialog, setShowPwdDialog] = useState(false);
   const [pwdForm, setPwdForm] = useState({ oldPwd: "", newPwd: "" });
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
   const [selectedFeedback, setSelectedFeedback] = useState(null);
+  const [role, setRole] = useState(
+    () => localStorage.getItem("role") || "User"
+  );
 
   const theme = useTheme();
   const isXs = useMediaQuery(theme.breakpoints.down("sm"));
@@ -81,6 +62,7 @@ export default function UserPanelPage() {
     message: "",
     severity: "success",
   });
+
   const modalPaperSx = {
     borderRadius: 4,
     p: 2,
@@ -103,37 +85,54 @@ export default function UserPanelPage() {
     outline: "none",
   };
 
+  const apiBase = import.meta.env.VITE_API_URL || "";
+
   useEffect(() => {
     const fetchUsers = async () => {
-      try {
-        const res = await fetch(
-          `${
-            process.env.REACT_APP_API_URL ||
-            "import.meta.env.VITE_API_URL/api/admin/users"
-          }`
+      const url = apiBase + "/api/admin/users";
+      const res = await fetch(url);
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setUsers(
+          data.users.map((u) => ({
+            ...u,
+            userId: u.id,
+          }))
         );
-        const data = await res.json();
-        if (res.ok && data.success) {
-          setUsers(data.users);
-        }
-      } catch {}
+      }
     };
     const fetchFeedbacks = async () => {
       try {
-        const res = await fetch(
-          `${
-            process.env.REACT_APP_API_URL ||
-            "import.meta.env.VITE_API_URL/api/admin/feedback/pending"
-          }`
-        );
+        const url = apiBase + "/api/feedback/pending";
+        const res = await fetch(url);
         const data = await res.json();
         if (res.ok && data.feedbacks) {
-          setFeedbacks(data.feedbacks);
+          setFeedbacks(
+            data.feedbacks.map((fb) => ({
+              id: fb.feedback_id,
+              suggestedCode: fb.correct_sku,
+              user: fb.username,
+              date: fb.complaint_time
+                ? (() => {
+                    const d = new Date(fb.complaint_time.replace(" ", "T"));
+                    return `${d.getDate().toString().padStart(2, "0")}-${(
+                      d.getMonth() + 1
+                    )
+                      .toString()
+                      .padStart(2, "0")}-${d.getFullYear()}`;
+                  })()
+                : "",
+              image: fb.image_data
+                ? `data:image/jpeg;base64,${fb.image_data}`
+                : null,
+            }))
+          );
         }
       } catch {}
     };
     fetchUsers();
     fetchFeedbacks();
+    // eslint-disable-next-line
   }, []);
 
   const handleApprove = (id) => {
@@ -154,13 +153,9 @@ export default function UserPanelPage() {
     )
       return;
     try {
-      const res = await fetch(
-        `${
-          process.env.REACT_APP_API_URL ||
-          "import.meta.env.VITE_API_URL/api/admin/user/" + userId
-        }`,
-        { method: "DELETE" }
-      );
+      const res = await fetch(apiBase + "/api/admin/user/" + userId, {
+        method: "DELETE",
+      });
       const data = await res.json();
       if (data.success) {
         setUsers((prev) => prev.filter((u) => u.userId !== userId));
@@ -187,20 +182,15 @@ export default function UserPanelPage() {
       selectedFeedback
     ) {
       try {
-        const res = await fetch(
-          `${
-            process.env.REACT_APP_API_URL ||
-            "import.meta.env.VITE_API_URL/api/admin/feedback/approve"
-          }`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              feedbackId: selectedFeedback,
-              approve: confirmAction === "approve",
-            }),
-          }
-        );
+        const res = await fetch(apiBase + "/api/admin/feedback/approve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            feedbackId: selectedFeedback,
+            approve: confirmAction === "approve",
+            adminName: username,
+          }),
+        });
         const data = await res.json();
         if (res.ok && data.success) {
           setFeedbacks((fbs) => fbs.filter((fb) => fb.id !== selectedFeedback));
@@ -234,24 +224,19 @@ export default function UserPanelPage() {
 
   const handlePwdChange = (e) =>
     setPwdForm({ ...pwdForm, [e.target.name]: e.target.value });
+
   const handlePwdSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(
-        `${
-          process.env.REACT_APP_API_URL ||
-          "import.meta.env.VITE_API_URL/api/admin/change-password"
-        }`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: localStorage.getItem("userId"),
-            oldPwd: pwdForm.oldPwd,
-            newPwd: pwdForm.newPwd,
-          }),
-        }
-      );
+      const res = await fetch(apiBase + "/api/admin/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: localStorage.getItem("userId"),
+          oldPwd: pwdForm.oldPwd,
+          newPwd: pwdForm.newPwd,
+        }),
+      });
       const data = await res.json();
       if (res.ok && data.success) {
         setSnackbar({
@@ -281,21 +266,26 @@ export default function UserPanelPage() {
   const handleUserSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(
-        `${
-          process.env.REACT_APP_API_URL ||
-          "import.meta.env.VITE_API_URL/api/admin/user"
-        }`,
-        {
-          method: isEditMode ? "PUT" : "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: userForm.userId,
-            role: userForm.role,
-            ...(isEditMode && editPwd ? { password: editPwd } : {}),
-          }),
-        }
-      );
+      const roleMap = { User: 3, Moderator: 2, Admin: 1 };
+      const res = await fetch(apiBase + "/api/admin/user", {
+        method: isEditMode ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          isEditMode
+            ? {
+                id: userForm.userId,
+                ...(editPwd && editPwd.trim() !== ""
+                  ? { password: editPwd }
+                  : {}),
+                role_id: roleMap[userForm.role],
+              }
+            : {
+                username: userForm.username,
+                password: userForm.password,
+                role_id: roleMap[userForm.role],
+              }
+        ),
+      });
       const data = await res.json();
       if (res.ok && data.success) {
         setSnackbar({
@@ -303,15 +293,15 @@ export default function UserPanelPage() {
           message: isEditMode ? "User Updated" : "User Created",
           severity: "success",
         });
-        const usersRes = await fetch(
-          `${
-            process.env.REACT_APP_API_URL ||
-            "import.meta.env.VITE_API_URL/api/admin/users"
-          }`
-        );
+        const usersRes = await fetch(apiBase + "/api/admin/users");
         const usersData = await usersRes.json();
         if (usersRes.ok && usersData.success) {
-          setUsers(usersData.users);
+          setUsers(
+            usersData.users.map((u) => ({
+              ...u,
+              userId: u.id,
+            }))
+          );
         }
       } else {
         setSnackbar({
@@ -324,7 +314,7 @@ export default function UserPanelPage() {
       setSnackbar({ open: true, message: "Network error", severity: "error" });
     }
     setShowUserDialog(false);
-    setUserForm({ userId: "", role: "" });
+    setUserForm({ username: "", password: "", role: "" });
     setIsEditMode(false);
     setEditPwd("");
   };
@@ -338,6 +328,42 @@ export default function UserPanelPage() {
         py: { xs: 1, sm: 2 },
       }}
     >
+      {role === "User" && (
+        <Paper
+          elevation={2}
+          sx={{
+            p: 2,
+            mb: 3,
+            mt: 2,
+            maxWidth: 400,
+            mx: "auto",
+            textAlign: "center",
+            borderRadius: 3,
+            background: "#f5f7fa",
+          }}
+        >
+          <Avatar
+            sx={{
+              width: 56,
+              height: 56,
+              mx: "auto",
+              mb: 1,
+              bgcolor: "#1976d2",
+              fontWeight: 700,
+              fontSize: 28,
+            }}
+          >
+            {username ? username[0].toUpperCase() : "U"}
+          </Avatar>
+          <Typography variant="h6" fontWeight={700} gutterBottom>
+            Welcome, {username || "User"}!
+          </Typography>
+          <Typography color="text.secondary" fontSize={15}>
+            Role: <b>User</b>
+          </Typography>
+        </Paper>
+      )}
+
       <Stack
         direction={isXs ? "column" : "row"}
         spacing={2}
@@ -488,9 +514,9 @@ export default function UserPanelPage() {
         <form onSubmit={handleUserSubmit} style={{ width: "100%" }}>
           <DialogContent sx={{ pt: 1, width: "100%" }}>
             <TextField
-              label="User ID"
-              name="userId"
-              value={userForm.userId}
+              label="Username"
+              name="username"
+              value={userForm.username}
               onChange={handleUserFormChange}
               fullWidth
               margin="normal"
@@ -514,6 +540,21 @@ export default function UserPanelPage() {
                 },
               }}
             />
+            {!isEditMode && (
+              <TextField
+                label="Password"
+                name="password"
+                type="password"
+                value={userForm.password}
+                onChange={handleUserFormChange}
+                fullWidth
+                margin="normal"
+                required
+                size={isXs ? "small" : "medium"}
+                autoComplete="new-password"
+                sx={{ borderRadius: 2 }}
+              />
+            )}
             <TextField
               label="Role"
               name="role"
@@ -592,6 +633,7 @@ export default function UserPanelPage() {
                 sx={{ borderRadius: 2 }}
                 size={isXs ? "small" : "medium"}
                 autoComplete="new-password"
+                disabled={userForm.role === "Admin"}
               />
             )}
           </DialogContent>
@@ -691,7 +733,7 @@ export default function UserPanelPage() {
                 sx={{ fontWeight: 600, fontSize: { xs: 15, md: 18 } }}
               >
                 User ID:{" "}
-                <span style={{ fontWeight: 400 }}>{userToDelete.userId}</span>
+                <span style={{ fontWeight: 400 }}>{userToDelete.username}</span>
               </Typography>
               <Typography
                 variant="subtitle2"
@@ -803,7 +845,7 @@ export default function UserPanelPage() {
               <TableHead>
                 <TableRow>
                   <TableCell align="center" sx={{ fontWeight: 700 }}>
-                    User ID
+                    Username
                   </TableCell>
                   <TableCell align="center" sx={{ fontWeight: 700 }}>
                     Role
@@ -818,8 +860,8 @@ export default function UserPanelPage() {
               </TableHead>
               <TableBody>
                 {users.map((u) => (
-                  <TableRow key={u.id}>
-                    <TableCell align="center">{u.userId}</TableCell>
+                  <TableRow key={u.userId}>
+                    <TableCell align="center">{u.username}</TableCell>{" "}
                     <TableCell align="center">{u.role}</TableCell>
                     <TableCell align="center">
                       <Button
@@ -834,6 +876,7 @@ export default function UserPanelPage() {
                           fontSize: isXs ? 13 : 15,
                           px: isXs ? 1.5 : 2,
                         }}
+                        disabled={u.role === "Admin"}
                       >
                         Edit
                       </Button>
@@ -841,6 +884,7 @@ export default function UserPanelPage() {
                     <TableCell align="center">
                       <IconButton
                         color="error"
+                        disabled={u.role === "Admin"}
                         onClick={() => {
                           setUserToDelete(u);
                           setConfirmAction("deleteUser");

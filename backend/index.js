@@ -3,7 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const app = express();
 
-app.use(cors());
+app.use(cors({ origin: "http://localhost:5173" }));
 app.use(express.json());
 app.use("/uploads", express.static("uploads"));
 
@@ -14,6 +14,7 @@ const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const statsRoutes = require("./routes/statsRoutes");
 const codeRoutes = require("./routes/codeRoutes");
+const validateRoutes = require("./routes/validateRoutes");
 
 app.use("/api/upload", uploadRoutes);
 app.use("/api/search", searchRoutes);
@@ -23,6 +24,7 @@ app.use("/api/permissions", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/stats", statsRoutes);
 app.use("/api/codes", codeRoutes);
+app.use("/api/validate", validateRoutes);
 
 const errorHandler = require("./middleware/errorHandler");
 app.use(errorHandler);

@@ -18,28 +18,22 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // --- Dummy flow ---
-  /*
-  const stats = {
-    totalCodes: 32,
-    totalImages: 34,
-  };
-  */
-
   useEffect(() => {
     const fetchStats = async () => {
       setLoading(true);
       setError("");
       try {
-        const res = await fetch(
-          `${
-            process.env.REACT_APP_API_URL ||
-            "import.meta.env.VITE_API_URL/api/stats"
-          }`
-        );
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/stats`);
         const data = await res.json();
+        console.log("Raw stats API response:", data);
         if (res.ok && data.success) {
-          setStats(data.stats);
+          const mappedStats = {
+            totalCodes: data.stats?.master_skus ?? data.stats?.totalCodes ?? 0,
+            totalImages:
+              data.stats?.total_records ?? data.stats?.totalImages ?? 0,
+          };
+          console.log("Mapped stats for UI:", mappedStats);
+          setStats(mappedStats);
         } else {
           setError(data.message || "Failed to fetch stats.");
         }
@@ -67,7 +61,7 @@ export default function HomePage() {
                 Total Spare Part Codes
               </Typography>
               <Typography variant="h3" fontWeight={700}>
-                {loading ? "..." : stats.totalCodes}
+                {loading ? "..." : stats?.totalCodes ?? 0}
               </Typography>
             </Paper>
           </motion.div>
@@ -79,7 +73,7 @@ export default function HomePage() {
                 Total Images Collected
               </Typography>
               <Typography variant="h3" fontWeight={700}>
-                {loading ? "..." : stats.totalImages}
+                {loading ? "..." : stats?.totalImages ?? 0}
               </Typography>
             </Paper>
           </motion.div>

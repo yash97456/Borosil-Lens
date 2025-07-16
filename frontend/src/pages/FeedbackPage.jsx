@@ -10,18 +10,11 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 import { Snackbar, Alert } from "@mui/material";
 
-// --- Dummy flow ---
-// const fakeCodes = [
-//   { label: "SP-1001" },
-//   { label: "SP-1002" },
-//   { label: "SP-1003" },
-//   { label: "SP-1004" },
-// ];
-
 export default function FeedbackPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const uploadedImage = location.state?.image;
+  const predictedSku = location.state?.predictedSku;
 
   useEffect(() => {
     if (!uploadedImage) {
@@ -45,12 +38,10 @@ export default function FeedbackPage() {
   useEffect(() => {
     const fetchCodes = async () => {
       try {
-        const res = await fetch(
-          `${
-            process.env.REACT_APP_API_URL ||
-            "import.meta.env.VITE_API_URL/api/codes"
-          }`
-        );
+        const url = import.meta.env.VITE_API_URL
+          ? `${import.meta.env.VITE_API_URL}/api/codes`
+          : "/api/codes";
+        const res = await fetch(url);
         const data = await res.json();
         if (res.ok && data.success) setCodes(data.codes);
       } catch (err) {}
@@ -62,23 +53,63 @@ export default function FeedbackPage() {
     e.preventDefault();
     setSubmitting(true);
 
-    const feedbackData = {
-      image: uploadedImage,
-      suggestedCode: code.label,
-      user: localStorage.getItem("userId") || "emp456",
-      date: new Date().toISOString().slice(0, 10),
-    };
+    if (!predictedSku) {
+      setSnackbar({
+        open: true,
+        message: "Predicted SKU is missing.",
+        severity: "error",
+      });
+      setSubmitting(false);
+      return;
+    }
 
     try {
+      const formData = new FormData();
+
+      if (
+        uploadedImage &&
+        typeof uploadedImage === "string" &&
+        uploadedImage.startsWith("blob:")
+      ) {
+        const response = await fetch(uploadedImage);
+        const blob = await response.blob();
+        formData.append("file", blob, "feedback.jpg");
+      } else if (
+        uploadedImage &&
+        typeof uploadedImage === "string" &&
+        uploadedImage.startsWith("data:")
+      ) {
+        const arr = uploadedImage.split(",");
+        const mime = arr[0].match(/:(.*?);/)[1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) u8arr[n] = bstr.charCodeAt(n);
+        const imageBlob = new Blob([u8arr], { type: mime });
+        formData.append("file", imageBlob, "feedback.jpg");
+      } else if (uploadedImage instanceof File) {
+        formData.append("file", uploadedImage, uploadedImage.name);
+      } else {
+        setSnackbar({
+          open: true,
+          message: "Invalid image format.",
+          severity: "error",
+        });
+        setSubmitting(false);
+        return;
+      }
+
+      formData.append("username", localStorage.getItem("userId") || "emp456");
+      formData.append("predicted_sku", predictedSku);
+      formData.append("correct_sku", code.label);
+
       const res = await fetch(
-        `${
-          process.env.REACT_APP_API_URL ||
-          "import.meta.env.VITE_API_URL/api/feedback"
-        }`,
+        import.meta.env.VITE_API_URL
+          ? `${import.meta.env.VITE_API_URL}/api/feedback`
+          : "/api/feedback",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(feedbackData),
+          body: formData,
         }
       );
       const data = await res.json();
@@ -105,32 +136,6 @@ export default function FeedbackPage() {
     }
     setSubmitting(false);
   };
-
-  // --- Dummy flow ---
-  /*
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    localStorage.setItem(
-      "newFeedback",
-      JSON.stringify({
-        image: uploadedImage || localStorage.getItem("uploadedImage"),
-        suggestedCode: code.label,
-        user: "emp456",
-        date: new Date().toISOString().slice(0, 10),
-      })
-    );
-    setTimeout(() => {
-      setSubmitting(false);
-      setCode(null);
-      setSnackbar({
-        open: true,
-        message: "Feedback submitted!",
-        severity: "success",
-      });
-    }, 1000);
-  };
-  */
 
   return (
     <Paper sx={{ maxWidth: 400, mx: "auto", p: 4 }}>
