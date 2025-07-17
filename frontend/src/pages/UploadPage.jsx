@@ -7,12 +7,15 @@ import {
   Button,
   IconButton,
   Autocomplete,
+  Divider,
 } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DeleteIcon from "@mui/icons-material/Delete";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import { Snackbar, Alert } from "@mui/material";
 import { styled } from "@mui/material/styles";
+import { CircularProgress } from "@mui/material";
+import { useTheme, useMediaQuery } from "@mui/material";
 
 const StyledPopper = styled("div")(({ theme }) => ({
   "& .MuiAutocomplete-listbox": {
@@ -83,6 +86,9 @@ export default function UploadPage() {
   const cameraInputRef = useRef();
   const [codes, setCodes] = useState([]);
   const [spareCode, setSpareCode] = useState(null);
+  const [autoOpen, setAutoOpen] = useState(false);
+  const theme = useTheme();
+  const isXs = useMediaQuery(theme.breakpoints.down("sm"));
 
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -101,16 +107,53 @@ export default function UploadPage() {
     fetchCodes();
   }, []);
 
-  const handleFileChange = (e) => {
+  function resizeImage(file, maxWidth = 4000, maxHeight = 4000) {
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      img.onload = function () {
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth || height > maxHeight) {
+          if (width / height > maxWidth / maxHeight) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            resolve(blob);
+          },
+          file.type,
+          0.95
+        );
+      };
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      setImage(file);
+      const resizedBlob = await resizeImage(file, 4000, 4000);
+      const resizedFile = new File([resizedBlob], file.name, {
+        type: file.type,
+      });
+      setImage(resizedFile);
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreview(reader.result);
         localStorage.setItem("uploadedImage", reader.result);
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(resizedFile);
     }
   };
 
@@ -132,7 +175,22 @@ export default function UploadPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!spareCode || !image) return;
+    if (!spareCode) {
+      setSnackbar({
+        open: true,
+        message: "Spare part code is required.",
+        severity: "error",
+      });
+      return;
+    }
+    if (!image) {
+      setSnackbar({
+        open: true,
+        message: "Image is required.",
+        severity: "error",
+      });
+      return;
+    }
     setUploading(true);
 
     try {
@@ -191,7 +249,39 @@ export default function UploadPage() {
             (option.description ? ` - ${option.description}` : "")
           }
           value={spareCode}
-          onChange={(_, value) => setSpareCode(value)}
+          onChange={(_, value) => {
+            setSpareCode(value);
+            if (isXs) {
+              const input = document.querySelector(
+                'input[name="Search Spare Part Code"]'
+              );
+              if (input) input.blur();
+            }
+          }}
+          filterOptions={(options, { inputValue }) =>
+            options.filter(
+              (option) =>
+                option.label.toLowerCase().includes(inputValue.toLowerCase()) ||
+                (option.description &&
+                  option.description
+                    .toLowerCase()
+                    .includes(inputValue.toLowerCase()))
+            )
+          }
+          noOptionsText={
+            <Box
+              sx={{
+                bgcolor: "#fff",
+                color: "#888",
+                textAlign: "center",
+                py: 2,
+                fontSize: 16,
+                fontWeight: 500,
+              }}
+            >
+              No options
+            </Box>
+          }
           renderOption={(props, option) => (
             <li
               {...props}
@@ -213,7 +303,7 @@ export default function UploadPage() {
           renderInput={(params) => (
             <TextField
               {...params}
-              label="Search or Select Spare Part Code"
+              label="Search Spare Part Code"
               placeholder="Type to Search Codes..."
               InputProps={{
                 ...params.InputProps,
@@ -227,12 +317,14 @@ export default function UploadPage() {
               inputProps={{
                 ...params.inputProps,
                 style: { textAlign: "center" },
+                name: "Search Spare Part Code",
               }}
             />
           )}
           PaperComponent={({ children }) => (
             <StyledPopper>{children}</StyledPopper>
           )}
+          disablePortal={isXs}
           sx={{
             mb: 2,
             "& .MuiInputBase-root": {
@@ -332,6 +424,7 @@ export default function UploadPage() {
         </Box>
         <Box sx={{ textAlign: "center", mt: 2, mb: 2 }}>
           <Button
+            type="button"
             variant="outlined"
             startIcon={<PhotoCameraIcon />}
             onClick={(e) => {
@@ -358,7 +451,14 @@ export default function UploadPage() {
           fullWidth
           disabled={!spareCode || !image || uploading}
         >
-          {uploading ? "Uploading..." : "Submit"}
+          {uploading ? (
+            <>
+              <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
+              Uploading...
+            </>
+          ) : (
+            "Submit"
+          )}
         </Button>
       </form>
       <Snackbar
@@ -367,26 +467,39 @@ export default function UploadPage() {
         onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
         sx={{
-          maxWidth: 360,
-          left: "50%",
-          transform: "translateX(-50%)",
-          top: { xs: 16, sm: 24 },
-          "& .MuiPaper-root": {
-            maxWidth: 360,
-            mx: 1,
-            borderRadius: 2,
+          "& .MuiSnackbarContent-root": {
+            xs: {
+              width: "70vw",
+              left: "50%",
+              transform: "translateX(-50%)",
+              minWidth: "unset",
+              maxWidth: "unset",
+              boxSizing: "border-box",
+              justifyContent: "center",
+              alignItems: "center",
+              textAlign: "center",
+              padding: "0",
+            },
           },
         }}
       >
         <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          {...(isXs
+            ? { onClose: undefined }
+            : { onClose: () => setSnackbar({ ...snackbar, open: false }) })}
           severity={snackbar.severity}
           sx={{
+            width: { xs: "70vw", sm: "100%" },
             fontSize: { xs: 15, sm: 16 },
             px: { xs: 1, sm: 2 },
             py: { xs: 1, sm: 1.5 },
             borderRadius: 2,
             boxShadow: 2,
+            textAlign: { xs: "center", sm: "left" },
+            mx: { xs: "auto", sm: 0 },
+            whiteSpace: "nowrap",
+            justifyContent: { xs: "center", sm: "flex-start" },
+            alignItems: { xs: "center", sm: "flex-start" },
           }}
           variant="filled"
         >

@@ -120,6 +120,9 @@ export default function FeedbackPage() {
           message: "Feedback submitted!",
           severity: "success",
         });
+        setTimeout(() => {
+          navigate("/", { replace: true });
+        }, 1200);
       } else {
         setSnackbar({
           open: true,
@@ -164,12 +167,70 @@ export default function FeedbackPage() {
           options={codes}
           value={code}
           onChange={(_, v) => setCode(v)}
+          renderOption={(props, option) => (
+            <li
+              {...props}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                textAlign: "center",
+                padding: "10px 0",
+                fontWeight: 500,
+                fontSize: 16,
+                background: "#fff",
+                transition: "background 0.18s",
+              }}
+            >
+              <span style={{ fontWeight: 600 }}>{option.label}</span>
+              {option.description && (
+                <span style={{ fontSize: 13, color: "#666" }}>
+                  {option.description}
+                </span>
+              )}
+            </li>
+          )}
+          PaperComponent={({ children }) => (
+            <div
+              style={{
+                maxHeight: 260,
+                overflowY: "auto",
+                background: "#fff",
+                borderRadius: 8,
+                boxShadow: "0 4px 24px 0 rgba(0,0,0,0.08)",
+                scrollbarWidth: "thin",
+                scrollbarColor: "#1976d2 #f5f5f5",
+              }}
+              className="custom-scrollbar"
+            >
+              {children}
+            </div>
+          )}
+          sx={{
+            mb: 2,
+            "& .MuiInputBase-root": {
+              borderRadius: 2,
+              fontWeight: 500,
+              fontSize: 16,
+              bgcolor: "#f5faff",
+            },
+            "& .MuiAutocomplete-endAdornment": {
+              right: 12,
+            },
+          }}
+          autoSelect={false}
+          openOnFocus={false}
           renderInput={(params) => (
             <TextField
               {...params}
               label="Spare Part Code"
               required
               margin="normal"
+              inputProps={{
+                ...params.inputProps,
+                style: { textAlign: "center" },
+              }}
+              inputRef={null}
             />
           )}
         />
@@ -190,26 +251,39 @@ export default function FeedbackPage() {
         onClose={() => setSnackbar({ ...snackbar, open: false })}
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
         sx={{
-          maxWidth: 360,
-          left: "50%",
-          transform: "translateX(-50%)",
-          top: { xs: 16, sm: 24 },
-          "& .MuiPaper-root": {
-            maxWidth: 360,
-            mx: 1,
-            borderRadius: 2,
+          "& .MuiSnackbarContent-root": {
+            xs: {
+              width: "70vw",
+              left: "50%",
+              transform: "translateX(-50%)",
+              minWidth: "unset",
+              maxWidth: "unset",
+              boxSizing: "border-box",
+              justifyContent: "center",
+              alignItems: "center",
+              textAlign: "center",
+              padding: "0",
+            },
           },
         }}
       >
         <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          {...(window.innerWidth <= 600
+            ? { onClose: undefined }
+            : { onClose: () => setSnackbar({ ...snackbar, open: false }) })}
           severity={snackbar.severity}
           sx={{
+            width: { xs: "70vw", sm: "100%" },
             fontSize: { xs: 15, sm: 16 },
             px: { xs: 1, sm: 2 },
             py: { xs: 1, sm: 1.5 },
             borderRadius: 2,
             boxShadow: 2,
+            textAlign: { xs: "center", sm: "left" },
+            mx: { xs: "auto", sm: 0 },
+            whiteSpace: "nowrap",
+            justifyContent: { xs: "center", sm: "flex-start" },
+            alignItems: { xs: "center", sm: "flex-start" },
           }}
           variant="filled"
         >

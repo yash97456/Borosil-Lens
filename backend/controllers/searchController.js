@@ -34,6 +34,7 @@ exports.searchImage = async (req, res, next) => {
         .json({ success: false, message: "Invalid search response" });
     }
   } catch (err) {
-    next(err);
+    console.error("Search error:", err);
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };

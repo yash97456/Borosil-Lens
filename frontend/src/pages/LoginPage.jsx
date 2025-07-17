@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Box,
   Paper,
@@ -39,10 +39,10 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, password }),
       });
-      if (!res.ok) {
-        return { success: false, message: "Server error" };
-      }
       const data = await res.json();
+      if (!res.ok) {
+        return { success: false, message: data.message || "Server error" };
+      }
       return data;
     } catch (err) {
       return { success: false, message: "Network error" };
@@ -70,6 +70,7 @@ export default function LoginPage() {
     setLoading(false);
 
     if (result.success) {
+      setError("");
       localStorage.setItem("userId", result.userId);
       localStorage.setItem("username", result.username);
       localStorage.setItem("role", result.role);
@@ -81,6 +82,17 @@ export default function LoginPage() {
       setTimeout(() => {
         navigate("/");
       }, 1000);
+    } else {
+      const errorMsg =
+        result.message === "Invalid credentials"
+          ? "Wrong Credentials"
+          : result.message || "Something went wrong";
+      setError(errorMsg);
+      setSnackbar({
+        open: true,
+        message: errorMsg,
+        severity: "error",
+      });
     }
   };
 
@@ -88,6 +100,15 @@ export default function LoginPage() {
     if (reason === "clickaway") return;
     setSnackbar((prev) => ({ ...prev, open: false }));
   };
+
+  useEffect(() => {
+    if (isXs) {
+      document.body.style.overflow = "hidden";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isXs]);
 
   return (
     <Box
@@ -98,6 +119,7 @@ export default function LoginPage() {
         alignItems: "center",
         justifyContent: "center",
         px: 1,
+        overflow: { xs: "hidden", sm: "auto" },
       }}
     >
       <Paper
@@ -112,6 +134,7 @@ export default function LoginPage() {
           flexDirection: "column",
           justifyContent: "center",
           boxSizing: "border-box",
+          mt: { xs: -8, sm: 0, md: 0 },
         }}
       >
         <Box sx={{ mb: 2, textAlign: "center" }}>
@@ -128,7 +151,7 @@ export default function LoginPage() {
           <Divider sx={{ mb: 2 }} />
         </Box>
         <Typography
-          variant={isXs ? "h6" : "h5"}
+          variant={isXs ? "h5" : "h5"}
           fontWeight={700}
           mb={2}
           textAlign="center"
@@ -152,7 +175,7 @@ export default function LoginPage() {
               fullWidth
               margin="none"
               required
-              autoFocus
+              autoFocus={isXs ? false : true}
               size={isXs ? "small" : "medium"}
               inputProps={{ style: { fontSize: isXs ? 14 : undefined } }}
             />
@@ -170,7 +193,16 @@ export default function LoginPage() {
             />
           </Box>
           {error && (
-            <Typography color="error" variant="body2" sx={{ mt: 1 }}>
+            <Typography
+              color="error"
+              variant="body2"
+              sx={{
+                mt: 1,
+                textAlign: "center",
+                width: "100%",
+                whiteSpace: "nowrap",
+              }}
+            >
               {error}
             </Typography>
           )}
@@ -190,18 +222,43 @@ export default function LoginPage() {
           open={snackbar.open}
           autoHideDuration={2500}
           onClose={handleSnackbarClose}
-          anchorOrigin={{ vertical: "top", horizontal: "center" }}
+          anchorOrigin={{
+            vertical: "top",
+            horizontal: "center",
+          }}
+          sx={{
+            "& .MuiSnackbarContent-root": {
+              xs: {
+                width: "70vw",
+                left: "50%",
+                transform: "translateX(-50%)",
+                minWidth: "unset",
+                maxWidth: "unset",
+                boxSizing: "border-box",
+                justifyContent: "center",
+                alignItems: "center",
+                textAlign: "center",
+                padding: "0",
+              },
+            },
+          }}
         >
           <Alert
-            onClose={handleSnackbarClose}
+            {...(isXs
+              ? { onClose: undefined }
+              : { onClose: handleSnackbarClose })}
             severity={snackbar.severity}
             sx={{
-              width: "100%",
+              width: { xs: "70vw", sm: "100%" },
               fontSize: { xs: 15, sm: 16 },
               px: { xs: 1, sm: 2 },
               py: { xs: 1, sm: 1.5 },
               borderRadius: 2,
               boxShadow: 2,
+              textAlign: { xs: "center", sm: "left" },
+              mx: { xs: "auto", sm: 0 },
+              justifyContent: { xs: "center", sm: "flex-start" },
+              alignItems: { xs: "center", sm: "flex-start" },
             }}
             variant="filled"
           >

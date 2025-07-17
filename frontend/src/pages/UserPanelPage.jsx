@@ -358,9 +358,6 @@ export default function UserPanelPage() {
           <Typography variant="h6" fontWeight={700} gutterBottom>
             Welcome, {username || "User"}!
           </Typography>
-          <Typography color="text.secondary" fontSize={15}>
-            Role: <b>User</b>
-          </Typography>
         </Paper>
       )}
 
