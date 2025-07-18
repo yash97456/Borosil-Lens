@@ -24,6 +24,8 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { Snackbar, Alert } from "@mui/material";
+import CircularProgress from "@mui/material/CircularProgress";
+import TableContainer from "@mui/material/TableContainer";
 
 const uploadedImage = localStorage.getItem("uploadedImage");
 
@@ -56,6 +58,9 @@ export default function UserPanelPage() {
 
   const [isEditMode, setIsEditMode] = useState(false);
   const [editPwd, setEditPwd] = useState("");
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadingFeedbacks, setLoadingFeedbacks] = useState(true);
+  const [userDialogLoading, setUserDialogLoading] = useState(false);
 
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -89,6 +94,7 @@ export default function UserPanelPage() {
 
   useEffect(() => {
     const fetchUsers = async () => {
+      setLoadingUsers(true);
       const url = apiBase + "/api/admin/users";
       const res = await fetch(url);
       const data = await res.json();
@@ -100,8 +106,10 @@ export default function UserPanelPage() {
           }))
         );
       }
+      setLoadingUsers(false);
     };
     const fetchFeedbacks = async () => {
+      setLoadingFeedbacks(true);
       try {
         const url = apiBase + "/api/feedback/pending";
         const res = await fetch(url);
@@ -129,6 +137,7 @@ export default function UserPanelPage() {
           );
         }
       } catch {}
+      setLoadingFeedbacks(false);
     };
     fetchUsers();
     fetchFeedbacks();
@@ -265,6 +274,7 @@ export default function UserPanelPage() {
 
   const handleUserSubmit = async (e) => {
     e.preventDefault();
+    setUserDialogLoading(true);
     try {
       const roleMap = { User: 3, Moderator: 2, Admin: 1 };
       const res = await fetch(apiBase + "/api/admin/user", {
@@ -317,6 +327,7 @@ export default function UserPanelPage() {
     setUserForm({ username: "", password: "", role: "" });
     setIsEditMode(false);
     setEditPwd("");
+    setUserDialogLoading(false);
   };
 
   return (
@@ -387,7 +398,12 @@ export default function UserPanelPage() {
           <Button
             variant="contained"
             color="secondary"
-            onClick={() => setShowUserDialog(true)}
+            onClick={() => {
+              setUserForm({ username: "", password: "", role: "" });
+              setIsEditMode(false);
+              setEditPwd("");
+              setShowUserDialog(true);
+            }}
             sx={{
               fontWeight: 700,
               fontSize: isXs ? 15 : 16,
@@ -651,9 +667,21 @@ export default function UserPanelPage() {
               type="submit"
               variant="contained"
               color="primary"
-              sx={{ borderRadius: 3, minWidth: 100, fontWeight: 700 }}
+              sx={{
+                borderRadius: 3,
+                minWidth: 100,
+                fontWeight: 700,
+                position: "relative",
+              }}
+              disabled={userDialogLoading}
             >
-              {isEditMode ? "Save" : "Save"}
+              {userDialogLoading ? (
+                <CircularProgress size={22} sx={{ color: "#fff" }} />
+              ) : isEditMode ? (
+                "Save"
+              ) : (
+                "Save"
+              )}
             </Button>
           </DialogActions>
         </form>
@@ -832,22 +860,54 @@ export default function UserPanelPage() {
               size={isXs ? "small" : "medium"}
               sx={{
                 minWidth: 320,
+                borderRadius: { xs: 1, sm: 3 },
+                overflow: "hidden",
+                boxShadow: 2,
+                "& .MuiTableHead-root": {
+                  background: "#e3f2fd",
+                },
+                "& .MuiTableCell-head": {
+                  background: "#e3f2fd",
+                  color: "#1976d2",
+                  fontWeight: 800,
+                  fontSize: isXs ? 14 : 16,
+                  borderBottom: "2px solid #90caf9",
+                },
+                "& .MuiTableRow-root": {
+                  transition: "background 0.2s",
+                  "&:hover": {
+                    background: "#f1f8e9",
+                  },
+                },
+                "& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)": {
+                  background: "#f9f9fb",
+                },
                 "& .MuiTableCell-root": {
                   fontSize: isXs ? 13 : 15,
                   px: isXs ? 1 : 2,
                   py: isXs ? 0.5 : 1.2,
+                  borderBottom: "1px solid #e0e0e0",
                 },
               }}
             >
               <TableHead>
                 <TableRow>
-                  <TableCell align="center" sx={{ fontWeight: 700 }}>
+                  <TableCell
+                    align="center"
+                    sx={{ fontWeight: 700, borderRight: "2px solid #bbdefb" }}
+                  >
                     Username
                   </TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 700 }}>
+                  <TableCell
+                    align="center"
+                    sx={{ fontWeight: 700, borderRight: "2px solid #bbdefb" }}
+                  >
                     Role
                   </TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 700 }}>
+                  <TableCell
+                    align="center"
+                    sx={{ fontWeight: 700, borderRight: "2px solid #bbdefb" }}
+                  >
                     Actions
                   </TableCell>
                   <TableCell align="center" sx={{ fontWeight: 700 }}>
@@ -856,43 +916,88 @@ export default function UserPanelPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {users.map((u) => (
-                  <TableRow key={u.userId}>
-                    <TableCell align="center">{u.username}</TableCell>{" "}
-                    <TableCell align="center">{u.role}</TableCell>
-                    <TableCell align="center">
-                      <Button
-                        size={isXs ? "small" : "medium"}
-                        onClick={() => {
-                          setUserForm(u);
-                          setEditPwd("");
-                          setIsEditMode(true);
-                          setShowUserDialog(true);
-                        }}
+                {loadingUsers ? (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center">
+                      <Box
                         sx={{
-                          fontSize: isXs ? 13 : 15,
-                          px: isXs ? 1.5 : 2,
-                        }}
-                        disabled={u.role === "Admin"}
-                      >
-                        Edit
-                      </Button>
-                    </TableCell>
-                    <TableCell align="center">
-                      <IconButton
-                        color="error"
-                        disabled={u.role === "Admin"}
-                        onClick={() => {
-                          setUserToDelete(u);
-                          setConfirmAction("deleteUser");
-                          setConfirmOpen(true);
+                          py: 3,
+                          display: "flex",
+                          justifyContent: "center",
                         }}
                       >
-                        <DeleteIcon />
-                      </IconButton>
+                        <CircularProgress size={36} />
+                      </Box>
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : users.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center">
+                      <Typography
+                        color="text.secondary"
+                        fontWeight={700}
+                        fontSize={isXs ? 14 : 16}
+                      >
+                        No users found
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  users.map((u) => (
+                    <TableRow key={u.userId}>
+                      <TableCell
+                        align="center"
+                        sx={{
+                          borderRight: "2px solid #bbdefb",
+                          fontWeight: 700,
+                          color: "#1976d2",
+                        }}
+                      >
+                        {u.username}
+                      </TableCell>
+                      <TableCell
+                        align="center"
+                        sx={{ borderRight: "2px solid #bbdefb" }}
+                      >
+                        {u.role}
+                      </TableCell>
+                      <TableCell
+                        align="center"
+                        sx={{ borderRight: "2px solid #bbdefb" }}
+                      >
+                        <Button
+                          size={isXs ? "small" : "medium"}
+                          onClick={() => {
+                            setUserForm(u);
+                            setEditPwd("");
+                            setIsEditMode(true);
+                            setShowUserDialog(true);
+                          }}
+                          sx={{
+                            fontSize: isXs ? 13 : 15,
+                            px: isXs ? 1.5 : 2,
+                          }}
+                          disabled={u.role === "Admin"}
+                        >
+                          Edit
+                        </Button>
+                      </TableCell>
+                      <TableCell align="center">
+                        <IconButton
+                          color="error"
+                          disabled={u.role === "Admin"}
+                          onClick={() => {
+                            setUserToDelete(u);
+                            setConfirmAction("deleteUser");
+                            setConfirmOpen(true);
+                          }}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </Paper>
@@ -925,25 +1030,60 @@ export default function UserPanelPage() {
               size={isXs ? "small" : "medium"}
               sx={{
                 minWidth: 400,
+                borderRadius: { xs: 1, sm: 3 },
+                overflow: "hidden",
+                boxShadow: 2,
+                "& .MuiTableHead-root": {
+                  background: "#e3f2fd",
+                },
+                "& .MuiTableCell-head": {
+                  background: "#e3f2fd",
+                  color: "#1976d2",
+                  fontWeight: 800,
+                  fontSize: isXs ? 14 : 16,
+                  borderBottom: "2px solid #90caf9",
+                },
+                "& .MuiTableRow-root": {
+                  transition: "background 0.2s",
+                  "&:hover": {
+                    background: "#fffde7",
+                  },
+                },
+                "& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)": {
+                  background: "#f9f9fb",
+                },
                 "& .MuiTableCell-root": {
                   fontSize: isXs ? 13 : 15,
                   px: isXs ? 1 : 2,
                   py: isXs ? 0.5 : 1.2,
+                  borderBottom: "1px solid #e0e0e0",
                 },
               }}
             >
               <TableHead>
                 <TableRow>
-                  <TableCell align="center" sx={{ fontWeight: 700 }}>
+                  <TableCell
+                    align="center"
+                    sx={{ fontWeight: 700, borderRight: "2px solid #bbdefb" }}
+                  >
                     Image
                   </TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 700 }}>
+                  <TableCell
+                    align="center"
+                    sx={{ fontWeight: 700, borderRight: "2px solid #bbdefb" }}
+                  >
                     Suggested Code
                   </TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 700 }}>
+                  <TableCell
+                    align="center"
+                    sx={{ fontWeight: 700, borderRight: "2px solid #bbdefb" }}
+                  >
                     User
                   </TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 700 }}>
+                  <TableCell
+                    align="center"
+                    sx={{ fontWeight: 700, borderRight: "2px solid #bbdefb" }}
+                  >
                     Date
                   </TableCell>
                   <TableCell align="center" sx={{ fontWeight: 700 }}>
@@ -952,93 +1092,142 @@ export default function UserPanelPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {feedbacks.map((fb) => (
-                  <TableRow key={fb.id}>
-                    <TableCell align="center">
-                      <Box
-                        sx={{
-                          width: isXs ? 60 : 90,
-                          height: isXs ? 60 : 90,
-                          mx: "auto",
-                          borderRadius: 2,
-                          overflow: "hidden",
-                          boxShadow: 1,
-                          background: "#fafafa",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          cursor: "pointer",
-                          transition: "box-shadow 0.2s",
-                          "&:hover": { boxShadow: 6 },
-                        }}
-                        onClick={() => {
-                          setModalImgSrc(fb.image);
-                          setOpenImgModal(true);
-                        }}
-                      >
-                        <img
-                          src={fb.image}
-                          alt="Feedback"
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "contain",
-                            display: "block",
-                            background: "#fff",
-                          }}
-                        />
-                      </Box>
-                    </TableCell>
-
-                    <TableCell align="center">{fb.suggestedCode}</TableCell>
-                    <TableCell align="center">{fb.user}</TableCell>
-                    <TableCell align="center">{fb.date}</TableCell>
-                    <TableCell align="center">
-                      <Stack
-                        direction={isXs ? "column" : "row"}
-                        spacing={1}
-                        justifyContent="center"
-                        alignItems="center"
-                      >
-                        <Button
-                          variant="contained"
-                          color="success"
-                          size={isXs ? "small" : "medium"}
-                          onClick={() => handleApprove(fb.id)}
-                          sx={{
-                            fontSize: isXs ? 13 : 15,
-                            px: isXs ? 1.5 : 2,
-                          }}
-                        >
-                          Approve
-                        </Button>
-                        <Button
-                          variant="outlined"
-                          color="error"
-                          size={isXs ? "small" : "medium"}
-                          onClick={() => handleReject(fb.id)}
-                          sx={{
-                            fontSize: isXs ? 13 : 15,
-                            px: isXs ? 1.5 : 2,
-                          }}
-                        >
-                          Reject
-                        </Button>
-                      </Stack>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {feedbacks.length === 0 && (
+                {loadingFeedbacks ? (
                   <TableRow>
                     <TableCell colSpan={5} align="center">
-                      <Typography
-                        color="text.secondary"
-                        fontSize={isXs ? 13 : 15}
+                      <Box
+                        sx={{
+                          py: 3,
+                          display: "flex",
+                          justifyContent: "center",
+                        }}
                       >
-                        No pending feedbacks
-                      </Typography>
+                        <CircularProgress size={36} />
+                      </Box>
                     </TableCell>
                   </TableRow>
+                ) : (
+                  <>
+                    {feedbacks.map((fb) => (
+                      <TableRow key={fb.id}>
+                        <TableCell
+                          align="center"
+                          sx={{ borderRight: "2px solid #bbdefb" }}
+                        >
+                          <Box
+                            sx={{
+                              width: isXs ? 60 : 90,
+                              height: isXs ? 60 : 90,
+                              mx: "auto",
+                              borderRadius: 2,
+                              overflow: "hidden",
+                              boxShadow: 1,
+                              background: "#fafafa",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              cursor: "pointer",
+                              transition: "box-shadow 0.2s",
+                              "&:hover": { boxShadow: 6 },
+                            }}
+                            onClick={() => {
+                              setModalImgSrc(fb.image);
+                              setOpenImgModal(true);
+                            }}
+                          >
+                            <img
+                              src={fb.image}
+                              alt="Feedback"
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "contain",
+                                display: "block",
+                                background: "#fff",
+                              }}
+                            />
+                          </Box>
+                        </TableCell>
+
+                        <TableCell
+                          align="center"
+                          sx={{
+                            borderRight: "2px solid #bbdefb",
+                            fontWeight: 700,
+                            color: "#388e3c",
+                          }}
+                        >
+                          {fb.suggestedCode}
+                        </TableCell>
+                        <TableCell
+                          align="center"
+                          sx={{
+                            borderRight: "2px solid #bbdefb",
+                            fontWeight: 700,
+                            color: "#388e3c",
+                          }}
+                        >
+                          {fb.user}
+                        </TableCell>
+                        <TableCell
+                          align="center"
+                          sx={{
+                            borderRight: "2px solid #bbdefb",
+                            fontWeight: 700,
+                            color: "#388e3c",
+                          }}
+                        >
+                          {fb.date}
+                        </TableCell>
+                        <TableCell align="center">
+                          <Stack
+                            direction={isXs ? "column" : "row"}
+                            spacing={1}
+                            justifyContent="center"
+                            alignItems="center"
+                          >
+                            <Button
+                              variant="contained"
+                              color="success"
+                              size={isXs ? "small" : "medium"}
+                              onClick={() => handleApprove(fb.id)}
+                              sx={{
+                                fontSize: isXs ? 13 : 15,
+                                px: isXs ? 1.5 : 2,
+                              }}
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              variant="outlined"
+                              color="error"
+                              size={isXs ? "small" : "medium"}
+                              onClick={() => handleReject(fb.id)}
+                              sx={{
+                                fontSize: isXs ? 13 : 15,
+                                px: isXs ? 1.5 : 2,
+                              }}
+                            >
+                              Reject
+                            </Button>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {feedbacks.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} align="center">
+                          <Typography
+                            color="text.secondary"
+                            fontWeight={700}
+                            fontSize={isXs ? 14 : 16}
+                          >
+                            No pending feedbacks
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </>
                 )}
               </TableBody>
             </Table>
@@ -1130,7 +1319,9 @@ export default function UserPanelPage() {
         }}
       >
         <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          {...(isXs
+            ? { onClose: undefined }
+            : { onClose: () => setSnackbar({ ...snackbar, open: false }) })}
           severity={snackbar.severity}
           sx={{
             fontSize: { xs: 15, sm: 16 },
@@ -1138,6 +1329,12 @@ export default function UserPanelPage() {
             py: { xs: 1, sm: 1.5 },
             borderRadius: 2,
             boxShadow: 2,
+            width: { xs: "70vw", sm: "100%" },
+            mx: { xs: "auto", sm: 0 },
+            textAlign: "center",
+            whiteSpace: "pre-line",
+            wordBreak: "break-word",
+            lineHeight: 1.4,
           }}
           variant="filled"
         >

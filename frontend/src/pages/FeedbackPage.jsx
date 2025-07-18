@@ -133,7 +133,7 @@ export default function FeedbackPage() {
     } catch (err) {
       setSnackbar({
         open: true,
-        message: "Network error.",
+        message: "Network error",
         severity: "error",
       });
     }

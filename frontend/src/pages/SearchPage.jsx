@@ -42,6 +42,7 @@ export default function SearchPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const showMoreRef = useRef();
+  const [hasSearched, setHasSearched] = useState(false);
 
   useEffect(() => {
     localStorage.removeItem("searchPreview");
@@ -76,11 +77,15 @@ export default function SearchPage() {
           JSON.stringify(data.results || [])
         );
         if (preview) localStorage.setItem("searchPreview", preview);
+        if (!data.results || data.results.length === 0) {
+          setLoading(false);
+          return;
+        }
       } else {
         setError(data.message || "Search failed.");
       }
     } catch (err) {
-      setError("Network error.");
+      setError("Network error");
     }
     setLoading(false);
   };
@@ -130,6 +135,7 @@ export default function SearchPage() {
       const url = URL.createObjectURL(resizedFile);
       setPreview(url);
       setResults([]);
+      setHasSearched(false);
       localStorage.removeItem("searchResults");
       localStorage.setItem("searchPreview", url);
     }
@@ -149,6 +155,7 @@ export default function SearchPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setResults([]);
+    setHasSearched(true);
     await fetchResults(image);
     setTimeout(() => {
       if (resultsRef.current) {
@@ -972,6 +979,14 @@ export default function SearchPage() {
             </Grid>
           )}
         </Box>
+      )}
+      {!loading && results.length === 0 && image && hasSearched && (
+        <Typography
+          color="text.secondary"
+          sx={{ textAlign: "center", mt: 4, fontSize: 18, fontWeight: 500 }}
+        >
+          No results found. Please try another image.
+        </Typography>
       )}
     </Box>
   );
